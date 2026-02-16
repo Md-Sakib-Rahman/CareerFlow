@@ -43,7 +43,7 @@ export default function HeroSection() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
               <span className="text-primary">Land Your Dream</span>
               <br />
-              <span className="text-base-content">Tech Job Faster</span>
+              <span className="text-base-content  ">Tech Job Faster</span>
             </h1>
 
             {/* Description - Uses content color with opacity */}
