@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import HomeLayout from "../Layouts/HomeLayout/HomeLayout";
 import HomePage from "../Pages/HomePage/HomePage";
-import LoadingSpinner from "../components/shared/LoadingSpinner";
+import LoadingSpinner from "../Components/Shared/LoadingSpinner/LoadingSpinner";
 
 export const router = createBrowserRouter([
   {

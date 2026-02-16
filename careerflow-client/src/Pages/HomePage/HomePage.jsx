@@ -1,10 +1,10 @@
 import React from 'react'
-import Navbar from '../../components/shared/Navbar'
-import Footer from '../../components/shared/Footer'
-import HeroSection from '../../components/HomeComponents/HeroSection'
-import FeaturesSection from '../../components/HomeComponents/FeaturesSection'
-import TestimonialsSection from '../../components/HomeComponents/TestimonialsSection'
-import PricingSection from '../../components/HomeComponents/PricingSection'
+import Navbar from '../../Components/Shared/Navbar/Navbar'
+import Footer from '../../Components/Shared/Footer/Footer'
+import HeroSection from '../../Components/HomeComponents/HeroSection'
+import FeaturesSection from '../../Components/HomeComponents/FeaturesSection'
+import TestimonialsSection from '../../Components/HomeComponents/TestimonialsSection'
+import PricingSection from '../../Components/HomeComponents/PricingSection'
 
 const HomePage = () => {
   return (
