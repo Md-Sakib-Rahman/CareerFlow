@@ -1,11 +1,20 @@
 import React from 'react'
+import Navbar from '../../Components/Shared/Navbar/Navbar'
+import Footer from '../../Components/Shared/Footer/Footer'
+import HeroSection from '../../Components/HomeComponents/HeroSection'
+import FeaturesSection from '../../Components/HomeComponents/FeaturesSection'
+import TestimonialsSection from '../../Components/HomeComponents/TestimonialsSection'
+import PricingSection from '../../Components/HomeComponents/PricingSection'
 
 const HomePage = () => {
   return (
     <div>
-      {/* This is Home Page  */}
-      <h2 className=''>Hello World</h2>
-      
+      <Navbar />
+      <HeroSection />
+      <FeaturesSection />
+      <TestimonialsSection />
+      <PricingSection />
+      <Footer/>
     </div>
   )
 }

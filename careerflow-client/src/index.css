@@ -1,3 +1,103 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+/* -----------------------------------------------------------
+   1. GLOBAL UTILITIES (Modular & Theme-Aware)
+   ----------------------------------------------------------- */
+@layer components {
+  /* High-vibrancy Gradient Primary Button */
+  .btn-primary {
+    /* Uses variables from the active theme instead of hardcoded hex */
+    background-image: linear-gradient(to right, var(--color-primary), var(--color-secondary)) !important;
+    background-color: transparent !important;
+    color: var(--color-primary-content) !important;
+    border: none !important;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-radius: var(--radius-box) !important;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9 !important;
+    background-image: linear-gradient(to right, var(--color-primary), var(--color-secondary)) !important;
+    transform: translateY(-1px);
+  }
+
+  /* Modular Outline Button */
+  .btn-outline {
+    border: 2px solid var(--color-primary) !important;
+    background: transparent !important;
+    color: var(--color-primary) !important;
+    border-radius: var(--radius-box) !important;
+  }
+
+  .btn-outline:hover {
+    background-color: var(--color-primary) !important;
+    color: var(--color-primary-content) !important;
+  }
+}
+
+/* -----------------------------------------------------------
+   2. THEME DEFINITIONS
+   ----------------------------------------------------------- */
+@plugin "daisyui/theme" {
+  name: "flowlight";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+
+  /* Surfaces & Text */
+  --color-base-100: #ffffff;    
+  --color-base-200: #f3f3f5;    
+  --color-base-300: #ececf0;    
+  --color-base-content: #1f2937; 
+
+  /* Exact Purple-600 to Indigo-600 logic */
+  --color-primary: #9333ea;      
+  --color-secondary: #4f46e5;    
+  --color-primary-content: #ffffff; 
+  
+  --color-accent: #db2777;       
+  --color-success: #16a34a;
+  --color-error: #dc2626;
+
+  /* Global Radius (rounded-xl match) */
+  --radius-selector: 0.75rem;
+  --radius-field: 0.75rem;
+  --radius-box: 0.75rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "flowdark";
+  prefersdark: true;
+  color-scheme: "dark";
+
+  /* 1. Surfaces: Moving from blue-heavy to deep neutral-slate */
+  --color-base-100: #09090b;    /* Deep matte black/zinc base */
+  --color-base-200: #18181b;    /* Slightly lighter for cards and sidebars */
+  --color-base-300: #27272a;    /* Hover states, borders, and dividers */
+  
+  /* 2. Readability: Off-white text to reduce contrast-glare */
+  --color-base-content: #f4f4f5; /* Zinc-100 (Clean and soft for the eyes) */
+
+  /* 3. Branding: Refined Vibrant Purple to Indigo */
+  /* These colors are tuned for dark backgrounds to maintain the "Hardcoded" vibrance */
+  --color-primary: #a855f7;      /* Primary Purple (Purple-500) */
+  --color-secondary: #6366f1;    /* Secondary Indigo (Indigo-500) */
+  --color-primary-content: #ffffff; 
+
+  /* 4. Functional & Utility */
+  --color-neutral: #3f3f46;      /* Zinc-600 */
+  --color-accent: #f43f5e;       /* Rose-500 for high-importance highlights */
+  
+  --radius-box: 0.75rem;         /* Matches your rounded-xl requirement */
+}
+
+/* -----------------------------------------------------------
+   3. BASE TYPOGRAPHY & LAYOUT
+   ----------------------------------------------------------- */
+@layer base {
+  body {
+    @apply bg-base-100 text-base-content antialiased;
+  }
+}
