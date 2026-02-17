@@ -1,6 +1,4 @@
-import React from 'react'
-import Navbar from '../../Components/Shared/Navbar/Navbar'
-import Footer from '../../Components/Shared/Footer/Footer'
+
 import HeroSection from '../../Components/HomeComponents/HeroSection'
 import FeaturesSection from '../../Components/HomeComponents/FeaturesSection'
 import TestimonialsSection from '../../Components/HomeComponents/TestimonialsSection'
