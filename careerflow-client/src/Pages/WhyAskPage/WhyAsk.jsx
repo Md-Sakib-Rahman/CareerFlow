@@ -23,8 +23,8 @@ const itemVariants = {
 
 const WhyAsk = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-100 py-16">
-      <div className="max-w-7xl mx-auto px-6">
+    <div className="bg-base-200 py-2 transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-6 py-16 lg:py-24">
           <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -36,10 +36,11 @@ const WhyAsk = () => {
           variants={itemVariants}
           className="text-center mb-16"
         >
-          <h1 className="text-5xl font-extrabold text-primary mb-4">
-            Why CareerFlow?
+          <h1 className="md:text-5xl font-bold leading-tight">
+              <span className="text-primary">Why CareerFlow?</span>
+            
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-base-content">
             Career Tech – Job Application Tracker
           </p>
         </motion.div>
@@ -51,13 +52,13 @@ const WhyAsk = () => {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.03 }}
-            className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100"
+            className="bg-base-100 rounded-2xl shadow-xl p-8"
           >
             <Briefcase className="w-10 h-10 text-indigo-600 mb-4" />
-            <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+            <h2 className="text-lg font-semibold text-base-content mb-3">
               The Problem
             </h2>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="text-base-content/60 text-sm leading-relaxed">
               Job seekers apply to multiple companies but struggle to track
               interview stages, deadlines, recruiter contacts, and follow-ups.
               This often results in confusion, missed opportunities, and stress.
@@ -68,13 +69,13 @@ const WhyAsk = () => {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.03 }}
-            className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100"
+            className="bg-base-100 rounded-2xl shadow-xl p-8"
           >
             <Target className="w-10 h-10 text-blue-600 mb-4" />
-            <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+            <h2 className="text-lg font-semibold text-base-content mb-3">
               Our Goal
             </h2>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="text-base-content/60 text-sm leading-relaxed">
               CareerFlow transforms the chaotic job search into a structured,
               visual pipeline system that helps users stay organized and focused
               throughout their journey.
@@ -85,13 +86,13 @@ const WhyAsk = () => {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.03 }}
-            className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100"
+            className="bg-base-100 rounded-2xl shadow-xl p-8"
           >
             <CheckCircle className="w-10 h-10 text-green-600 mb-4" />
-            <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+            <h2 className="text-lg font-semibold text-base-content mb-3">
               The Solution
             </h2>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="text-base-content/60 text-sm leading-relaxed">
               With customizable boards, analytics, reminders, and drag-and-drop
               functionality, CareerFlow keeps everything in one powerful dashboard.
             </p>
@@ -101,13 +102,13 @@ const WhyAsk = () => {
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.03 }}
-            className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100"
+            className="bg-base-100 rounded-2xl shadow-xl p-8"
           >
             <TrendingUp className="w-10 h-10 text-purple-600 mb-4" />
-            <h2 className="text-2xl font-semibold mb-4 text-gray-800">
+            <h2 className="text-lg font-semibold text-base-content mb-3">
               Expected Impact
             </h2>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="text-base-content/60 text-sm leading-relaxed">
               CareerFlow empowers students and professionals to track progress,
               improve success rates, reduce stress, and make smarter career decisions.
             </p>

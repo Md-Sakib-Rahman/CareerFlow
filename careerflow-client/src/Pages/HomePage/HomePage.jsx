@@ -5,7 +5,7 @@ import HeroSection from '../../Components/HomeComponents/HeroSection'
 import FeaturesSection from '../../Components/HomeComponents/FeaturesSection'
 import TestimonialsSection from '../../Components/HomeComponents/TestimonialsSection'
 import PricingSection from '../../Components/HomeComponents/PricingSection'
-import WhyAsked from '../WhyAsk'
+import WhyAsked from '../WhyAskPage/WhyAsk'
 
 const HomePage = () => {
   return (
