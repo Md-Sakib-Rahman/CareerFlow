@@ -4,6 +4,7 @@ import HomePage from "../Pages/HomePage/HomePage";
 import FAQPage from "../Pages/FAQPage/FAQPage";
 import OurStoryPage from "../Pages/OurStory/OurStoryPage";
 import LoadingSpinner from "../Components/Shared/LoadingSpinner/LoadingSpinner";
+import WhyAsk from "../Pages/WhyAskPage/WhyAsk";
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,10 @@ export const router = createBrowserRouter([
       {
         path: "/our-story",
         element: <OurStoryPage />,
+      },
+      {
+        path: "/whyus",
+        element: <WhyAsk/>
       },
       
     ]

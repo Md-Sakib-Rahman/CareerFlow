@@ -47,6 +47,7 @@ export default function Navbar() {
               { title: "Home", link: "/" },
               { title: "FAQ", link: "/faq" },
               { title: "Our-Story", link: "/our-story" },
+              { title: "Why us?", link: "/whyus" },
             ].map((item) => (
               <NavLink
                 key={item.title}
