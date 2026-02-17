@@ -9,12 +9,10 @@ import PricingSection from '../../Components/HomeComponents/PricingSection'
 const HomePage = () => {
   return (
     <div>
-      <Navbar />
       <HeroSection />
       <FeaturesSection />
       <TestimonialsSection />
       <PricingSection />
-      <Footer/>
     </div>
   )
 }

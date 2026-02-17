@@ -15,25 +15,26 @@ import {
 } from 'lucide-react';
 import Navbar from '../../Components/Shared/Navbar/Navbar';
 import Footer from '../../Components/Shared/Footer/Footer';
+import TimelineStep from '../../Components/OurStoryComponents/TimelineStep';
 
-const TimelineStep = ({ year, title, description, align }) => (
-    <motion.div
-        initial={{ opacity: 0, x: align === 'left' ? -50 : 50 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        className={`flex flex-col md:flex-row items-center gap-8 mb-16 ${align === 'right' ? 'md:flex-row-reverse' : ''}`}
-    >
-        <div className={`flex-1 text-center ${align === 'right' ? 'md:text-left' : 'md:text-right'}`}>
-            <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-2">{year}</h3>
-            <h4 className="text-xl font-bold mb-2">{title}</h4>
-            <p className="text-base-content/60">{description}</p>
-        </div>
-        <div className="w-12 h-12 bg-base-100 rounded-full border-4 border-primary flex items-center justify-center shadow-[0_0_20px_rgba(147,51,234,0.3)] z-10 shrink-0">
-            <div className="w-4 h-4 bg-secondary rounded-full"></div>
-        </div>
-        <div className="flex-1 md:block hidden"></div>
-    </motion.div>
-);
+// const TimelineStep = ({ year, title, description, align }) => (
+//     <motion.div
+//         initial={{ opacity: 0, x: align === 'left' ? -50 : 50 }}
+//         whileInView={{ opacity: 1, x: 0 }}
+//         viewport={{ once: true, margin: "-100px" }}
+//         className={`flex flex-col md:flex-row items-center gap-8 mb-16 ${align === 'right' ? 'md:flex-row-reverse' : ''}`}
+//     >
+//         <div className={`flex-1 text-center ${align === 'right' ? 'md:text-left' : 'md:text-right'}`}>
+//             <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-2">{year}</h3>
+//             <h4 className="text-xl font-bold mb-2">{title}</h4>
+//             <p className="text-base-content/60">{description}</p>
+//         </div>
+//         <div className="w-12 h-12 bg-base-100 rounded-full border-4 border-primary flex items-center justify-center shadow-[0_0_20px_rgba(147,51,234,0.3)] z-10 shrink-0">
+//             <div className="w-4 h-4 bg-secondary rounded-full"></div>
+//         </div>
+//         <div className="flex-1 md:block hidden"></div>
+//     </motion.div>
+// );
 
 const TechItem = ({ icon: Icon, name, desc }) => (
     <motion.div
@@ -59,7 +60,6 @@ const OurStoryPage = () => {
 
     return (
         <div className="min-h-screen bg-base-200/30 overflow-hidden">
-            <Navbar />
 
             {/* Hero Section */}
             <section className="relative pt-32 pb-20 px-6 text-center">
@@ -75,14 +75,14 @@ const OurStoryPage = () => {
                     Building the Future
                 </motion.div>
 
-                <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
+                <h1 className="text-4xl md:text-5xl font-black mb-6 leading-tight">
                     Crafting Careers, <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-accent">
                         One Click at a Time.
                     </span>
                 </h1>
 
-                <p className="text-xl text-base-content/60 max-w-2xl mx-auto mb-10">
+                <p className="md:text-xl text-sm text-base-content/60 max-w-2xl mx-auto mb-10">
                     From a dorm room idea to a comprehensive career management platform. This is the story of how CareerFlow came to be.
                 </p>
 
@@ -94,24 +94,24 @@ const OurStoryPage = () => {
             </section>
 
             {/* Mission Statement */}
-            <section className="py-20 px-6 bg-base-100 relative overflow-hidden">
-                <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+            <section className="py-20 md:px-6 px-2  bg-base-100 relative ">
+                <div className="max-w-6xl mx-auto grid max-sm:grid-cols-1 md:grid-cols-2 gap-10 max-md:gap-4 items-center max-sm:text-center">
                     <motion.div
                         initial={{ opacity: 0, x: -50 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         className="relative"
                     >
-                        <div className="absolute -top-10 -left-10 w-40 h-40 bg-secondary/10 rounded-full blur-3xl"></div>
-                        <h2 className="text-4xl font-bold mb-6 relative z-10">The Mission Statement</h2>
-                        <p className="text-lg text-base-content/70 mb-6 leading-relaxed">
+                        <div className="absolute -top-10 -left-10 w-40 h-40 bg-secondary/10 rounded-full blur-3xl "></div>
+                        <h2 className="text-3xl md:text-4xl font-bold mb-6 relative z-10 max-sm:text-center">The Mission Statement</h2>
+                        <p className="text-md max-md:text-sm md:text-lg text-base-content/70 mb-6 leading-relaxed">
                             We believe that the job search process is broken. It's fragmented, stressful, and cluttered.
                         </p>
-                        <p className="text-lg text-base-content/70 mb-8 leading-relaxed">
+                        <p className="text-lg text-base-content/70 mb-8 leading-relaxed max-md:text-sm">
                             Our mission is simple: <strong className="text-primary">to empower the next generation of talent.</strong> We're building tools that bring clarity to chaos, helping students and professionals organize their applications, track their progress, and land their dream roles with confidence.
                         </p>
 
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 flex-wrap max-sm:justify-center">
                             <div className="flex items-center gap-2 px-4 py-2 bg-base-200 rounded-lg font-semibold">
                                 <Target className="text-primary" size={20} />
                                 <span>Focus</span>
@@ -150,8 +150,8 @@ const OurStoryPage = () => {
                 <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/5 to-transparent -z-10"></div>
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4">The Student Edge</h2>
-                        <p className="text-xl text-base-content/60 max-w-2xl mx-auto">
+                        <h2 className="text-3xl md:text-4xl font-bold mb-4">The Student Edge</h2>
+                        <p className="text-xl max-md:text-sm text-base-content/60 max-w-2xl mx-auto">
                             Why CareerFlow is the ultimate companion for students and early-career professionals.
                         </p>
                     </div>
@@ -191,7 +191,7 @@ const OurStoryPage = () => {
                                 <div className={`w-14 h-14 rounded-xl bg-base-200 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ${item.color}`}>
                                     <item.icon size={28} />
                                 </div>
-                                <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
+                                <h3 className="text-2xl max-md:text-sm font-bold mb-3">{item.title}</h3>
                                 <p className="text-base-content/60 leading-relaxed font-medium">
                                     {item.desc}
                                 </p>
@@ -202,12 +202,12 @@ const OurStoryPage = () => {
             </section>
 
             {/* Tech Stack Highlight */}
-            <section ref={containerRef} className="py-24 px-6 bg-base-100 border-t border-base-300">
+            <section ref={containerRef} className="py-24 px-6 bg-base-100 border-t border-base-300 ">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex flex-col md:flex-row gap-12 items-start">
                         <div className="md:w-1/3 md:sticky md:top-32">
-                            <h2 className="text-4xl font-black mb-6">Tech Stack Highlight</h2>
-                            <p className="text-lg text-base-content/60 mb-8">
+                            <h2 className="text-3xl md:text-4xl  font-black mb-6 max-sm:text-center">Tech Stack Highlight</h2>
+                            <p className="text-lg max-sm:text-sm text-base-content/60 mb-8 max-sm:text-center">
                                 We leverage the latest and greatest in modern web development to deliver a seamless, high-performance experience.
                             </p>
                             <button className="btn btn-primary btn-outline gap-2 group">
@@ -282,7 +282,6 @@ const OurStoryPage = () => {
                 </div>
             </section>
 
-            <Footer />
         </div>
     );
 };

@@ -21,7 +21,8 @@ export const router = createBrowserRouter([
       {
         path: "/our-story",
         element: <OurStoryPage />,
-      }
+      },
+      
     ]
   },
 ]);

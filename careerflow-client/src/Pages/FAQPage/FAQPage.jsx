@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import Navbar from '../../Components/Shared/Navbar/Navbar';
 import Footer from '../../Components/Shared/Footer/Footer';
+import FAQItem from '../../Components/FAQComponents/FAQItem';
+import CTASection from '../../Components/FAQComponents/CTASection';
 
 const FAQ_DATA = [
     {
@@ -122,46 +124,6 @@ const FAQ_DATA = [
     }
 ];
 
-const FAQItem = ({ question, answer, icon }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <div className="border border-base-300 rounded-xl overflow-hidden mb-4 bg-base-100/50 backdrop-blur-sm transition-all hover:border-primary/50">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-5 text-left transition-colors hover:bg-base-200"
-            >
-                <div className="flex items-center gap-4">
-                    <div className="p-2 bg-base-200 rounded-lg text-primary">
-                        {icon}
-                    </div>
-                    <span className="font-semibold text-lg">{question}</span>
-                </div>
-                <motion.div
-                    animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <ChevronDown size={20} className="text-base-content/50" />
-                </motion.div>
-            </button>
-
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                    >
-                        <div className="px-5 pb-5 pt-0 text-base-content/70 leading-relaxed pl-16">
-                            {answer}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
 
 const FAQPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -175,8 +137,7 @@ const FAQPage = () => {
     })).filter(category => category.questions.length > 0);
 
     return (
-        <div className="min-h-screen bg-base-100">
-            <Navbar />
+        <div className="min-h-screen bg-base-100 py-20">
 
             {/* Hero Section */}
             <section className="relative py-20 overflow-hidden">
@@ -190,7 +151,7 @@ const FAQPage = () => {
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-4xl md:text-6xl font-black mb-6"
+                        className="text-4xl md:text-5xl font-black mb-6"
                     >
                         Frequently Asked <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Questions</span>
                     </motion.h1>
@@ -236,7 +197,7 @@ const FAQPage = () => {
                             >
                                 <div className="flex items-center gap-3 mb-8 border-b border-base-300 pb-4">
                                     {category.icon}
-                                    <h2 className="text-2xl font-bold">{category.category}</h2>
+                                    <h2 className="md:text-2xl text-xl font-bold">{category.category}</h2>
                                 </div>
 
                                 <div className="space-y-4">
@@ -270,26 +231,8 @@ const FAQPage = () => {
             </section>
 
             {/* CTA Section */}
-            <section className="py-20 bg-base-200/30">
-                <div className="max-w-4xl mx-auto px-6 text-center">
-                    <div className="p-10 rounded-[2rem] bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 backdrop-blur-xl">
-                        <h2 className="text-3xl font-bold mb-4">Still have questions?</h2>
-                        <p className="text-base-content/60 mb-8 max-w-lg mx-auto">
-                            Our team is here to help you supercharge your career journey. Get in touch with us anytime.
-                        </p>
-                        <div className="flex flex-wrap justify-center gap-4">
-                            <button className="btn-primary px-8 py-3 rounded-xl font-bold">
-                                Contact Support
-                            </button>
-                            <button className="btn-outline px-8 py-3 rounded-xl font-bold">
-                                Visit Community
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <CTASection/>
 
-            <Footer />
         </div>
     );
 };
