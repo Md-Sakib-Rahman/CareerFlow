@@ -6,11 +6,13 @@ import FeaturesSection from '../../Components/HomeComponents/FeaturesSection'
 import TestimonialsSection from '../../Components/HomeComponents/TestimonialsSection'
 import PricingSection from '../../Components/HomeComponents/PricingSection'
 import Register from '../../Components/Auth/Register'
+import Login from '../../Components/Auth/Login'
 
 const HomePage = () => {
   return (
     <div>
       <Navbar />
+      <Login />
       <HeroSection />
       <FeaturesSection />
       <TestimonialsSection />
