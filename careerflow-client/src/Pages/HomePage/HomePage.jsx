@@ -12,7 +12,7 @@ const HomePage = () => {
       <TestimonialsSection />
       <PricingSection />
     </div>
-  )
-}
+  );
+};
 
-export default HomePage
+export default HomePage;

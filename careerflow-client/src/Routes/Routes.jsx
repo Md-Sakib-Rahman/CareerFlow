@@ -5,7 +5,8 @@ import FAQPage from "../Pages/FAQPage/FAQPage";
 import OurStoryPage from "../Pages/OurStory/OurStoryPage";
 import LoadingSpinner from "../Components/Shared/LoadingSpinner/LoadingSpinner";
 import WhyAsk from "../Pages/WhyAskPage/WhyAsk";
-
+import Login from "../Pages/Auth/Login"
+import Register from "../Pages/Auth/Register";
 export const router = createBrowserRouter([
   {
     path: "/", // Landing page layout !
@@ -26,6 +27,14 @@ export const router = createBrowserRouter([
       {
         path: "/whyus",
         element: <WhyAsk/>
+      },
+      {
+        path: "/login",
+        element: <Login/>
+      },
+      {
+        path: "/register",
+        element: <Register/>
       },
       
     ]
