@@ -1,4 +1,5 @@
 import { Twitter, Linkedin, Instagram, MessageCircle } from "lucide-react";
+import { Link } from "react-router";
 
 export default function Footer() {
   return (
@@ -31,8 +32,8 @@ export default function Footer() {
             {/* Social Icons - Uses base-300 for theme consistency */}
             <div className="flex gap-4">
               {[Twitter, Linkedin, Instagram, MessageCircle].map((Icon, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className="p-2 rounded-lg bg-base-200 text-base-content/70 hover:bg-primary hover:text-primary-content transition-all cursor-pointer shadow-sm"
                 >
                   <Icon size={18} />
@@ -57,11 +58,14 @@ export default function Footer() {
           <div>
             <h3 className="text-base-content font-bold mb-4">Resources</h3>
             <ul className="space-y-3 text-sm">
-              {["Blog", "Interview Prep Guide", "Resume Templates", "Community Forum", "Help Center"].map((item) => (
+              {["Blog", "Interview Prep Guide", "Resume Templates", "Community Forum"].map((item) => (
                 <li key={item} className="text-base-content/70 hover:text-primary transition cursor-pointer">
                   {item}
                 </li>
               ))}
+              <li className="text-base-content/70 hover:text-primary transition cursor-pointer">
+                <Link to="/faq">Help Center & FAQ</Link>
+              </li>
             </ul>
           </div>
 
@@ -69,7 +73,10 @@ export default function Footer() {
           <div>
             <h3 className="text-base-content font-bold mb-4">Company</h3>
             <ul className="space-y-3 text-sm">
-              {["About Us", "Student Stories", "We're Hiring!", "Contact"].map((item) => (
+              <li className="text-base-content/70 hover:text-primary transition cursor-pointer">
+                <Link to="/our-story">Our Story</Link>
+              </li>
+              {["Student Stories", "We're Hiring!", "Contact"].map((item) => (
                 <li key={item} className="text-base-content/70 hover:text-primary transition cursor-pointer">
                   {item}
                 </li>
