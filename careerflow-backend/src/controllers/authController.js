@@ -1,7 +1,7 @@
 const generateTokens = require("../utils/generateToken");
 const User = require("../models/User")
 const bcrypt = require('bcryptjs')
-
+const jwt = require("jsonwebtoken");
 
 const registerUser = async (req, res)=>{
     try{
@@ -80,7 +80,7 @@ const loginUser = async (req, res) => {
         await user.save();
 
         const { accessToken, refreshToken } = generateTokens(user);
-        
+        console.log(refreshToken)
         const cookieOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
@@ -107,5 +107,40 @@ const loginUser = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+const refreshTokenController = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) {
+            return res.status(401).json({ success: false, message: "No refresh token provided" });
+        }
 
-module.exports = {registerUser, loginUser}
+        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
+            if (err) {
+                return res.status(403).json({ success: false, message: "Invalid or expired refresh token" });
+            }
+
+            //Finding the user in the database to Ensures user still exists and isn't locked
+            const user = await User.findById(decoded.id);
+            if (!user) {
+                return res.status(404).json({ success: false, message: "User not found" });
+            }
+
+            if (user.lockUntil && user.lockUntil > Date.now()) {
+                return res.status(403).json({ success: false, message: "Account is restricted" });
+            }
+
+            // NEW Access Token 
+            const { accessToken } = generateTokens(user);
+
+            return res.status(200).json({
+                success: true,
+                accessToken
+            });
+        });
+
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+
+module.exports = {registerUser, loginUser, refreshTokenController}
