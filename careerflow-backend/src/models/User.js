@@ -12,10 +12,11 @@ const userSchema = new mongoose.Schema({
         unique: true,
         lowercase: true
     },
-    password:{
+    passwordHash:{
         type: String,
         required:true
     },
+    imageUrl: {type: String, required:true},
     plan: {
         type: String,
         required: true,
@@ -26,6 +27,9 @@ const userSchema = new mongoose.Schema({
         type: [String], // Better type safety for ["MERN", "DevOps"]
         default: []
     },
+    failedLoginAttempts: {type: Number, default: 0},
+    
+    lockUntil: { type: Date }
 
 },{ 
     // This automatically creates 'createdAt' and 'updatedAt' 
