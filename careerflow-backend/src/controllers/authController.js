@@ -48,7 +48,64 @@ const registerUser = async (req, res)=>{
 }
 
 const loginUser = async (req, res) => {
-    
+    try {
+        const { email, password } = req.body;
+        
+        const user = await User.findOne({ email });
+        if (!user) return res.status(401).json({ success: false, message: "Invalid Credentials" });
+
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Account restricted! Try again in a few minutes." 
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash);  
+        
+        if (!isMatch) {
+            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+            
+            if (user.failedLoginAttempts >= 3) {
+                user.lockUntil = Date.now() + 15 * 60 * 1000;  
+                user.failedLoginAttempts = 0;  
+            }
+            
+            await user.save();  
+            return res.status(401).json({ success: false, message: "Invalid Credentials" });
+        }
+
+        user.failedLoginAttempts = 0;
+        user.lockUntil = null;
+        await user.save();
+
+        const { accessToken, refreshToken } = generateTokens(user);
+        
+        const cookieOptions = {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        };
+
+        return res
+            .status(200)
+            .cookie("refreshToken", refreshToken, cookieOptions)
+            .json({
+                success: true,
+                message: "User Logged in Successfully",
+                accessToken,
+                data: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    plan: user.plan
+                }
+            });
+
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
 };
 
 module.exports = {registerUser, loginUser}
