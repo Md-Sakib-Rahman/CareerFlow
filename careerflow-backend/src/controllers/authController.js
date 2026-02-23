@@ -142,5 +142,62 @@ const refreshTokenController = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+// GET current logged-in user profile
+const getMe = async (req, res) => {
+    try {
+        // 'protect' middleware get from req.user 
+        const user = await User.findById(req.user.id);
+        
+        if (user) {
+            res.status(200).json({
+                success: true,
+                data: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    industries: user.industries,
+                    imageUrl: user.imageUrl,
+                    plan: user.plan
+                }
+            });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
 
-module.exports = {registerUser, loginUser, refreshTokenController}
+// UPDATE user profile
+const updateMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (user) {
+            // Only update fields that are provided in the request body
+            user.name = req.body.name || user.name;
+            user.industries = req.body.industries || user.industries;
+            user.imageUrl = req.body.imageUrl || user.imageUrl;
+
+            const updatedUser = await user.save();
+
+            res.status(200).json({
+                success: true,
+                message: "Profile updated successfully",
+                data: {
+                    id: updatedUser._id,
+                    name: updatedUser.name,
+                    email: updatedUser.email,
+                    industries: updatedUser.industries,
+                    imageUrl: updatedUser.imageUrl
+                }
+            });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+
+module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe}
