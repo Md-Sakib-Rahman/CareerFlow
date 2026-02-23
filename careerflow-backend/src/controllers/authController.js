@@ -1,267 +1,449 @@
 const generateTokens = require("../utils/generateToken");
-const User = require("../models/User")
-const bcrypt = require('bcryptjs')
-const crypto = require('crypto');
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const Otp = require("../models/Otp");
+const nodemailer = require("nodemailer");
+const { OAuth2Client } = require('google-auth-library');
 
-const registerUser = async (req, res)=>{
-    try{
-        const {name, email, password, plan, industries, imageUrl} = req.body;
-        const isExist = await User.findOne({email})
-        if(isExist) return res.status(400).json({success:"failed", message: "user email already exists"});
-        const salt = bcrypt.genSaltSync(10);
-        const hash = bcrypt.hashSync(password, salt);
-        const newUser = new User({
-            name,
-            email,
-            passwordHash: hash,
-            plan,
-            industries,
-            imageUrl
-        })
-        
-        const savedUser = await newUser.save()
-        const { accessToken, refreshToken } = generateTokens(savedUser);
-        const cookieOptions = {
-            httpOnly: true,     
-            secure: process.env.NODE_ENV === "production",  
-            sameSite: "strict",  
-            maxAge: 7 * 24 * 60 * 60 * 1000  
-        };
-        return res
-            .status(201)
-            .cookie("refreshToken", refreshToken, cookieOptions)
-            .json({
-                success: true,
-                message: "User Created Successfully",
-                accessToken,  
-                data: {
-                    id: savedUser._id,
-                    name: savedUser.name,
-                    email: savedUser.email,
-                    plan: savedUser.plan
-                }
-            });
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const sendRegistrationOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-    }catch(err){
-        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      if (existingUser.authProvider === "google") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This Gmail is registered via Google. Please use Google Sign-In.",
+        });
+      }
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already exists." });
     }
-}
 
-const loginUser = async (req, res) => {
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Otp.deleteMany({ email });
+    await Otp.create({ email, otp: otpCode });
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail", 
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    const mailOptions = {
+      from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
+      to: email, 
+      subject: "Your CareerFlow Verification Code",
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #9333ea;">Welcome to CareerFlow!</h2>
+            <p>Please use the following One-Time Password (OTP) to complete your registration:</p>
+            <h1 style="letter-spacing: 5px; color: #111;">${otpCode}</h1>
+            <p><em>This code is valid for 5 minutes.</em></p>
+        </div>
+    `,
+    };
+    await transporter.sendMail(mailOptions);
+
+    console.log(`MOCK EMAIL SENT TO ${email}: OTP is ${otpCode}`);
+
+    return res
+      .status(200)
+      .json({ success: true, message: "OTP sent to email" });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+
+const registerUser = async (req, res) => {
+  try {
+    const { name, email, password, plan, industries, imageUrl, otp } = req.body;
+    const isExist = await User.findOne({ email });
+    const validOtp = await Otp.findOne({ email, otp });
+        if (!validOtp) {
+            return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+        }
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(password, salt);
+    const newUser = new User({
+      name,
+      email,
+      passwordHash: hash,
+      plan,
+      industries,
+      imageUrl,
+      authProvider: 'local'
+    });
+
+    const savedUser = await newUser.save();
+    await Otp.deleteMany({ email });
+    const { accessToken, refreshToken } = generateTokens(savedUser);
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+    return res
+      .status(201)
+      .cookie("refreshToken", refreshToken, cookieOptions)
+      .json({
+        success: true,
+        message: "User Created Successfully",
+        accessToken,
+        data: {
+          id: savedUser._id,
+          name: savedUser.name,
+          email: savedUser.email,
+          plan: savedUser.plan,
+        },
+      });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+const googleSignIn = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        
-        const user = await User.findOne({ email });
-        if (!user) return res.status(401).json({ success: false, message: "Invalid Credentials" });
+        const { googleToken } = req.body;  
 
-        if (user.lockUntil && user.lockUntil > Date.now()) {
-            return res.status(403).json({ 
-                success: false, 
-                message: "Account restricted! Try again in a few minutes." 
+        const ticket = await client.verifyIdToken({
+            idToken: googleToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const { email, name, picture } = payload;
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            
+            const randomPassword = crypto.randomBytes(20).toString('hex');
+            const salt = bcrypt.genSaltSync(10);
+            const hash = bcrypt.hashSync(randomPassword, salt);
+
+            const newUser = new User({
+                name,
+                email,
+                passwordHash: hash, 
+                imageUrl: picture,
+                authProvider: 'google',  
+                plan: 'starter'
             });
+            user = await newUser.save();
+        } else if (user.authProvider === 'local') {
+             
+            return res.status(400).json({ success: false, message: "This email uses a password. Please log in normally." });
         }
-
-        const isMatch = await bcrypt.compare(password, user.passwordHash);  
-        
-        if (!isMatch) {
-            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-            
-            if (user.failedLoginAttempts >= 3) {
-                user.lockUntil = Date.now() + 15 * 60 * 1000;  
-                user.failedLoginAttempts = 0;  
-            }
-            
-            await user.save();  
-            return res.status(401).json({ success: false, message: "Invalid Credentials" });
-        }
-
-        user.failedLoginAttempts = 0;
-        user.lockUntil = null;
-        await user.save();
 
         const { accessToken, refreshToken } = generateTokens(user);
-        console.log(refreshToken)
-        const cookieOptions = {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        };
+        const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 };
 
-        return res
-            .status(200)
-            .cookie("refreshToken", refreshToken, cookieOptions)
-            .json({
-                success: true,
-                message: "User Logged in Successfully",
-                accessToken,
-                data: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    plan: user.plan
-                }
-            });
-
-    } catch (err) {
-        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
-    }
-};
-const refreshTokenController = async (req, res) => {
-    try {
-        const refreshToken = req.cookies.refreshToken;
-        if (!refreshToken) {
-            return res.status(401).json({ success: false, message: "No refresh token provided" });
-        }
-
-        jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
-            if (err) {
-                return res.status(403).json({ success: false, message: "Invalid or expired refresh token" });
-            }
-
-            //Finding the user in the database to Ensures user still exists and isn't locked
-            const user = await User.findById(decoded.id);
-            if (!user) {
-                return res.status(404).json({ success: false, message: "User not found" });
-            }
-
-            if (user.lockUntil && user.lockUntil > Date.now()) {
-                return res.status(403).json({ success: false, message: "Account is restricted" });
-            }
-
-            // NEW Access Token 
-            const { accessToken } = generateTokens(user);
-
-            return res.status(200).json({
-                success: true,
-                accessToken
-            });
+        return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
+            success: true,
+            message: "Google Sign-In Successful",
+            accessToken,
+            data: { id: user._id, name: user.name, email: user.email, plan: user.plan }
         });
 
     } catch (err) {
-        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+        return res.status(401).json({ success: false, message: "Invalid Google Token", error: err.message });
     }
 };
-// GET current logged-in user profile
-const getMe = async (req, res) => {
+const setGoogleUserPassword = async (req, res) => {
     try {
-        // 'protect' middleware get from req.user 
-        const user = await User.findById(req.user.id);
+        const { newPassword } = req.body;
         
-        if (user) {
-            res.status(200).json({
-                success: true,
-                data: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    industries: user.industries,
-                    imageUrl: user.imageUrl,
-                    plan: user.plan
-                }
-            });
-        } else {
-            res.status(404).json({ success: false, message: "User not found" });
-        }
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server Error", error: err.message });
-    }
-};
-
-// UPDATE user profile
-const updateMe = async (req, res) => {
-    try {
         const user = await User.findById(req.user.id);
-
-        if (user) {
-            // Only update fields that are provided in the request body
-            user.name = req.body.name || user.name;
-            user.industries = req.body.industries || user.industries;
-            user.imageUrl = req.body.imageUrl || user.imageUrl;
-
-            const updatedUser = await user.save();
-
-            res.status(200).json({
-                success: true,
-                message: "Profile updated successfully",
-                data: {
-                    id: updatedUser._id,
-                    name: updatedUser.name,
-                    email: updatedUser.email,
-                    industries: updatedUser.industries,
-                    imageUrl: updatedUser.imageUrl
-                }
-            });
-        } else {
-            res.status(404).json({ success: false, message: "User not found" });
-        }
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server Error", error: err.message });
-    }
-};
-// Forgot Password Controller
-const forgotPassword = async (req, res) => {
-    try {
-        const { email } = req.body;
-        const user = await User.findOne({ email });
-
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        // reset token create (randomBytes generate a random token and convert to hex string)
-        const resetToken = crypto.randomBytes(20).toString('hex');
-
-        // token hash and save to database (security purpose)
-        user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; 
-
-        await user.save();
-
-        // reset URL create
-        const resetUrl = `${req.protocol}://${req.get('host')}/auth/reset-password/${resetToken}`;
-
-        res.status(200).json({
-            success: true,
-            message: "Token generated successfully",
-            resetUrl: resetUrl // In production, you would send this URL via email to the user instead of returning it in the response
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server Error", error: err.message });
-    }
-};
-// ২. Reset Password Controller
-const resetPassword = async (req, res) => {
-    try {
-        // token hash and database থেকে user খুঁজে বের করা
-        const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
-
-        const user = await User.findOne({
-            passwordResetToken: hashedToken,
-            passwordResetExpires: { $gt: Date.now() } // Ensure token is not expired
-        });
-
-        if (!user) {
-            return res.status(400).json({ success: false, message: "Invalid or expired token" });
+        if (user.authProvider !== 'google') {
+            return res.status(400).json({ 
+                success: false, 
+                message: "This account already has a password. Please use the Change Password feature instead." 
+            });
         }
 
-        // নতুন password hash করে database এ save করা
         const salt = bcrypt.genSaltSync(10);
-        user.passwordHash = bcrypt.hashSync(req.body.password, salt);
+        user.passwordHash = bcrypt.hashSync(newPassword, salt);
         
-        // token এবং expiration date reset করা
-        user.passwordResetToken = undefined;
-        user.passwordResetExpires = undefined;
+        user.authProvider = 'both'; 
 
         await user.save();
 
-        res.status(200).json({ success: true, message: "Password reset successful" });
+        return res.status(200).json({ 
+            success: true, 
+            message: "Password set successfully. You can now log in using Google or your Email/Password." 
+        });
 
     } catch (err) {
-        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe, forgotPassword, resetPassword}
+    const user = await User.findOne({ email });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid Credentials" });
+
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      return res.status(403).json({
+        success: false,
+        message: "Account restricted! Try again in a few minutes.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isMatch) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+
+      if (user.failedLoginAttempts >= 3) {
+        user.lockUntil = Date.now() + 15 * 60 * 1000;
+        user.failedLoginAttempts = 0;
+      }
+
+      await user.save();
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid Credentials" });
+    }
+
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+
+    const { accessToken, refreshToken } = generateTokens(user);
+    console.log(refreshToken);
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+
+    return res
+      .status(200)
+      .cookie("refreshToken", refreshToken, cookieOptions)
+      .json({
+        success: true,
+        message: "User Logged in Successfully",
+        accessToken,
+        data: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          plan: user.plan,
+        },
+      });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+const refreshTokenController = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No refresh token provided" });
+    }
+
+    jwt.verify(
+      refreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+      async (err, decoded) => {
+        if (err) {
+          return res.status(403).json({
+            success: false,
+            message: "Invalid or expired refresh token",
+          });
+        }
+
+        const user = await User.findById(decoded.id);
+        if (!user) {
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found" });
+        }
+
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Account is restricted" });
+        }
+
+        const { accessToken } = generateTokens(user);
+
+        return res.status(200).json({
+          success: true,
+          accessToken,
+        });
+      },
+    );
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (user) {
+      res.status(200).json({
+        success: true,
+        data: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          industries: user.industries,
+          imageUrl: user.imageUrl,
+          plan: user.plan,
+        },
+      });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+
+// UPDATE user profile
+const updateMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (user) {
+      user.name = req.body.name || user.name;
+      user.industries = req.body.industries || user.industries;
+      user.imageUrl = req.body.imageUrl || user.imageUrl;
+
+      const updatedUser = await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: {
+          id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          industries: updatedUser.industries,
+          imageUrl: updatedUser.imageUrl,
+        },
+      });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+// Forgot Password Controller
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const resetToken = crypto.randomBytes(20).toString("hex");
+
+    user.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+    await user.save();
+
+    const resetUrl = `${req.protocol}://${req.get("host")}/auth/reset-password/${resetToken}`;
+
+    res.status(200).json({
+      success: true,
+      message: "Token generated successfully",
+      resetUrl: resetUrl, 
+    });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+const resetPassword = async (req, res) => {
+  try {
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(req.params.token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired token" });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    user.passwordHash = bcrypt.hashSync(req.body.password, salt);
+
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+
+    await user.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Password reset successful" });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: err.message });
+  }
+};
+
+module.exports = {
+  sendRegistrationOTP,
+  registerUser,
+  googleSignIn,
+  setGoogleUserPassword,
+  loginUser,
+  refreshTokenController,
+  getMe,
+  updateMe,
+  forgotPassword,
+  resetPassword,
+};
