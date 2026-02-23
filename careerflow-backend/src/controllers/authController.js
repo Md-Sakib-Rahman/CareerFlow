@@ -387,12 +387,40 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     const resetUrl = `${req.protocol}://${req.get("host")}/auth/reset-password/${resetToken}`;
-
-    res.status(200).json({
-      success: true,
-      message: "Token generated successfully",
-      resetUrl: resetUrl, 
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
     });
+    const mailOptions = {
+      from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "CareerFlow Password Reset",
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2 style="color: #9333ea;">Password Reset Request</h2>
+            <p>Click the link below to securely reset your password. This link expires in 10 minutes.</p>
+            <a href="${resetUrl}" style="background-color: #9333ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        </div>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
+    if (process.env.NODE_ENV === "development") {
+        // Dev Mode: Sending the URL in the JSON so front end teams can use it for developement 
+        return res.status(200).json({
+            success: true,
+            message: "Email sent. (DEV MODE: URL included below)",
+            resetUrl: resetUrl 
+        });
+    } else {
+        // Production Mode: Hiding the URL for total security
+        return res.status(200).json({
+            success: true,
+            message: "If an account with that email exists, a reset link has been sent."
+        });
+    }
   } catch (err) {
     res
       .status(500)
