@@ -1,6 +1,7 @@
 const generateTokens = require("../utils/generateToken");
 const User = require("../models/User")
 const bcrypt = require('bcryptjs')
+const crypto = require('crypto');
 const jwt = require("jsonwebtoken");
 
 const registerUser = async (req, res)=>{
@@ -142,5 +143,125 @@ const refreshTokenController = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+// GET current logged-in user profile
+const getMe = async (req, res) => {
+    try {
+        // 'protect' middleware get from req.user 
+        const user = await User.findById(req.user.id);
+        
+        if (user) {
+            res.status(200).json({
+                success: true,
+                data: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    industries: user.industries,
+                    imageUrl: user.imageUrl,
+                    plan: user.plan
+                }
+            });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
 
-module.exports = {registerUser, loginUser, refreshTokenController}
+// UPDATE user profile
+const updateMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (user) {
+            // Only update fields that are provided in the request body
+            user.name = req.body.name || user.name;
+            user.industries = req.body.industries || user.industries;
+            user.imageUrl = req.body.imageUrl || user.imageUrl;
+
+            const updatedUser = await user.save();
+
+            res.status(200).json({
+                success: true,
+                message: "Profile updated successfully",
+                data: {
+                    id: updatedUser._id,
+                    name: updatedUser.name,
+                    email: updatedUser.email,
+                    industries: updatedUser.industries,
+                    imageUrl: updatedUser.imageUrl
+                }
+            });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+// Forgot Password Controller
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // reset token create (randomBytes generate a random token and convert to hex string)
+        const resetToken = crypto.randomBytes(20).toString('hex');
+
+        // token hash and save to database (security purpose)
+        user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; 
+
+        await user.save();
+
+        // reset URL create
+        const resetUrl = `${req.protocol}://${req.get('host')}/auth/reset-password/${resetToken}`;
+
+        res.status(200).json({
+            success: true,
+            message: "Token generated successfully",
+            resetUrl: resetUrl // In production, you would send this URL via email to the user instead of returning it in the response
+        });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+// ২. Reset Password Controller
+const resetPassword = async (req, res) => {
+    try {
+        // token hash and database থেকে user খুঁজে বের করা
+        const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+        const user = await User.findOne({
+            passwordResetToken: hashedToken,
+            passwordResetExpires: { $gt: Date.now() } // Ensure token is not expired
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid or expired token" });
+        }
+
+        // নতুন password hash করে database এ save করা
+        const salt = bcrypt.genSaltSync(10);
+        user.passwordHash = bcrypt.hashSync(req.body.password, salt);
+        
+        // token এবং expiration date reset করা
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+
+        await user.save();
+
+        res.status(200).json({ success: true, message: "Password reset successful" });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+
+module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe, forgotPassword, resetPassword}
