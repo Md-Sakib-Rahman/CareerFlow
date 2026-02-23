@@ -232,5 +232,36 @@ const forgotPassword = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+// ২. Reset Password Controller
+const resetPassword = async (req, res) => {
+    try {
+        // token hash and database থেকে user খুঁজে বের করা
+        const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
-module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe, forgotPassword}
+        const user = await User.findOne({
+            passwordResetToken: hashedToken,
+            passwordResetExpires: { $gt: Date.now() } // Ensure token is not expired
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid or expired token" });
+        }
+
+        // নতুন password hash করে database এ save করা
+        const salt = bcrypt.genSaltSync(10);
+        user.passwordHash = bcrypt.hashSync(req.body.password, salt);
+        
+        // token এবং expiration date reset করা
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+
+        await user.save();
+
+        res.status(200).json({ success: true, message: "Password reset successful" });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+
+module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe, forgotPassword, resetPassword}
