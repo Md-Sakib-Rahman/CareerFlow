@@ -1,6 +1,7 @@
 const generateTokens = require("../utils/generateToken");
 const User = require("../models/User")
 const bcrypt = require('bcryptjs')
+const crypto = require('crypto');
 const jwt = require("jsonwebtoken");
 
 const registerUser = async (req, res)=>{
@@ -199,5 +200,37 @@ const updateMe = async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+// Forgot Password Controller
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
 
-module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe}
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // reset token create (randomBytes generate a random token and convert to hex string)
+        const resetToken = crypto.randomBytes(20).toString('hex');
+
+        // token hash and save to database (security purpose)
+        user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        user.passwordResetExpires = Date.now() + 10 * 60 * 1000; 
+
+        await user.save();
+
+        // reset URL create
+        const resetUrl = `${req.protocol}://${req.get('host')}/auth/reset-password/${resetToken}`;
+
+        res.status(200).json({
+            success: true,
+            message: "Token generated successfully",
+            resetUrl: resetUrl // In production, you would send this URL via email to the user instead of returning it in the response
+        });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    }
+};
+
+module.exports = {registerUser, loginUser, refreshTokenController, getMe, updateMe, forgotPassword}

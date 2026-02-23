@@ -29,7 +29,9 @@ const userSchema = new mongoose.Schema({
     },
     failedLoginAttempts: {type: Number, default: 0},
     
-    lockUntil: { type: Date }
+    lockUntil: { type: Date },
+    passwordResetToken: String,
+    passwordResetExpires: Date
 
 },{ 
     // This automatically creates 'createdAt' and 'updatedAt' 
