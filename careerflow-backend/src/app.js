@@ -4,8 +4,21 @@ const cookieParser = require('cookie-parser');
 const app = express();
 const authRoutes= require('./routes/authRoutes')
 
+
+const corsOptions = {
+  // If in development, allow any origin (reflects the request origin).
+  // If in production, strictly allow only your deployed frontend URL.
+  origin: process.env.NODE_ENV === 'development' 
+    ? true 
+    : ["http://localhost:5173", "http://127.0.0.1:5173"], 
+  
+  // CRITICAL: Required to allow cookies (like your refreshToken) to be sent across origins
+  credentials: true, 
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+};
 //  GLOBAL MIDDLEWARE
-app.use(cors()); // Enable Cross-Origin Resource Sharing
+app.use(cors(corsOptions)); // Enable Cross-Origin Resource Sharing
 app.use(express.json()); // Body parser for JSON
 app.use(cookieParser());
 //  ROUTES

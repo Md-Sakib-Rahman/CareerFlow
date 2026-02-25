@@ -1,10 +1,23 @@
 import { Star } from "lucide-react";
 import StatItem from "./StatItem";
-
+import {motion} from "framer-motion"
 export default function TestimonialsSection() {
   return (
     // Section background: Light (Soft Gray) / Dark (Matte Zinc) 
-    <section className="bg-base-200 py-24 transition-colors duration-300">
+    <section className="relative bg-base-100 py-24 transition-colors duration-300">
+      {/* Ambient Blur 1 - Top Left */}
+          <motion.div 
+            animate={{ x: [0, 30, -50, 0], y: [0, -20, 40, 0] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-0 left-0 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] pointer-events-none z-0"
+          />
+
+          {/* Ambient Blur 2 - Bottom Right */}
+          <motion.div 
+            animate={{ x: [0, -40, 30, 0], y: [0, 50, -30, 0] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/10 rounded-full blur-[120px] pointer-events-none z-0"
+          />
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Header */}

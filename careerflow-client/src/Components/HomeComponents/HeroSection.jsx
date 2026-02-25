@@ -1,6 +1,6 @@
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination, EffectFade } from "swiper/modules";
-
+import {motion} from 'framer-motion'
 // Import Swiper styles
 import "swiper/css";
 import "swiper/css/pagination";
@@ -28,7 +28,21 @@ export default function HeroSection() {
 
   return (
     // section bg uses base-200 to differentiate from navbar in dark mode
-    <section className="relative overflow-hidden bg-base-200 transition-colors duration-300 pt-10">
+    <section className="relative overflow-hidden bg-base-100 transition-colors duration-300 pt-10">
+      {/* Ambient Blur 1 - Top Left */}
+          <motion.div 
+            animate={{ x: [0, 30, -50, 0], y: [0, -20, 40, 0] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-0 left-0 w-[400px] h-[400px] bg-primary/30 rounded-full blur-[100px] pointer-events-none z-0"
+          />
+
+          {/* Ambient Blur 2 - Bottom Right */}
+          <motion.div 
+            animate={{ x: [0, -40, 30, 0], y: [0, 50, -30, 0] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/30 rounded-full blur-[120px] pointer-events-none z-0"
+          />
+
       <div className="max-w-7xl mx-auto px-6 py-16 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-12">
           
