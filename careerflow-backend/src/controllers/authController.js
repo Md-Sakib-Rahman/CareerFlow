@@ -106,6 +106,8 @@ const registerUser = async (req, res) => {
           name: savedUser.name,
           email: savedUser.email,
           plan: savedUser.plan,
+          imageUrl: savedUser.imageUrl,
+          industries: savedUser.industries
         },
       });
   } catch (err) {
@@ -114,53 +116,115 @@ const registerUser = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
+// const googleSignIn = async (req, res) => {
+//     try {
+//         // const { googleToken } = req.body;  
+//         const { idToken } = req.body;
+
+//         const ticket = await client.verifyIdToken({
+//             // idToken: googleToken,
+//             idToken: idToken,
+//             audience: process.env.GOOGLE_CLIENT_ID,
+//         });
+//         const payload = ticket.getPayload();
+//         const { email, name, picture } = payload;
+
+//         let user = await User.findOne({ email });
+
+//         if (!user) {
+            
+//             const randomPassword = crypto.randomBytes(20).toString('hex');
+//             const salt = bcrypt.genSaltSync(10);
+//             const hash = bcrypt.hashSync(randomPassword, salt);
+
+//             const newUser = new User({
+//                 name,
+//                 email,
+//                 passwordHash: hash, 
+//                 imageUrl: picture,
+//                 authProvider: 'google',  
+//                 plan: 'starter'
+//             });
+//             user = await newUser.save();
+//         } else if (user.authProvider === 'local') {
+             
+//             return res.status(400).json({ success: false, message: "This email uses a password. Please log in normally." });
+//         }
+
+//         const { accessToken, refreshToken } = generateTokens(user);
+//         const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 };
+
+//         return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
+//             success: true,
+//             message: "Google Sign-In Successful",
+//             accessToken,
+//             data: { id: user._id, name: user.name, email: user.email, plan: user.plan, imageUrl: user.imageUrl, industries: user.industries }
+//         });
+
+//     } catch (err) {
+//         return res.status(401).json({ success: false, message: "Invalid Google Token", error: err.message });
+//     }
+// };
+
+const axios = require('axios'); // Add this at the top
+
 const googleSignIn = async (req, res) => {
     try {
-        const { googleToken } = req.body;  
+        const { idToken } = req.body; // This is the access_token from useGoogleLogin
 
-        const ticket = await client.verifyIdToken({
-            idToken: googleToken,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        const { email, name, picture } = payload;
+        const googleResponse = await axios.get(
+          `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${idToken}`
+        );
+        
+        const { email, name, picture } = googleResponse.data;
 
         let user = await User.findOne({ email });
 
         if (!user) {
-            
             const randomPassword = crypto.randomBytes(20).toString('hex');
             const salt = bcrypt.genSaltSync(10);
             const hash = bcrypt.hashSync(randomPassword, salt);
 
-            const newUser = new User({
+            user = await User.create({
                 name,
                 email,
                 passwordHash: hash, 
                 imageUrl: picture,
                 authProvider: 'google',  
-                plan: 'starter'
+                plan: 'starter',
+                industries: [] // Ensure this is initialized as an empty array
             });
-            user = await newUser.save();
-        } else if (user.authProvider === 'local') {
-             
-            return res.status(400).json({ success: false, message: "This email uses a password. Please log in normally." });
         }
 
         const { accessToken, refreshToken } = generateTokens(user);
-        const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 };
+        const cookieOptions = { 
+            httpOnly: true, 
+            secure: process.env.NODE_ENV === "production", 
+            sameSite: "strict", 
+            maxAge: 7 * 24 * 60 * 60 * 1000 
+        };
 
         return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
             success: true,
             message: "Google Sign-In Successful",
             accessToken,
-            data: { id: user._id, name: user.name, email: user.email, plan: user.plan }
+            data: { 
+                id: user._id, 
+                name: user.name, 
+                email: user.email, 
+                plan: user.plan,
+                imageUrl: user.imageUrl,
+                industries: user.industries || [] ,
+                authProvider: user.authProvider
+            }
         });
 
     } catch (err) {
-        return res.status(401).json({ success: false, message: "Invalid Google Token", error: err.message });
+        console.error("Google Auth Error:", err.response?.data || err.message);
+        return res.status(401).json({ success: false, message: "Google Auth failed" });
     }
 };
+
 const setGoogleUserPassword = async (req, res) => {
     try {
         const { newPassword } = req.body;
@@ -198,10 +262,13 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
+    if (!user){
+      console.log("no user found")
       return res
         .status(401)
         .json({ success: false, message: "Invalid Credentials" });
+    }
+      
 
     if (user.lockUntil && user.lockUntil > Date.now()) {
       return res.status(403).json({
@@ -213,6 +280,7 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
+      console.log("LOGIN FAILED: Passwords do not match")
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
       if (user.failedLoginAttempts >= 3) {
@@ -251,6 +319,8 @@ const loginUser = async (req, res) => {
           name: user.name,
           email: user.email,
           plan: user.plan,
+          imageUrl: user.imageUrl,
+          authProvider: user.authProvider
         },
       });
   } catch (err) {
@@ -320,6 +390,7 @@ const getMe = async (req, res) => {
           industries: user.industries,
           imageUrl: user.imageUrl,
           plan: user.plan,
+          authProvider: user.authProvider
         },
       });
     } else {
@@ -333,6 +404,7 @@ const getMe = async (req, res) => {
 };
 
 // UPDATE user profile
+
 const updateMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
