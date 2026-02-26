@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const boardSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId, // Required for linking to User
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',  
     required: true,
   },
@@ -10,7 +10,6 @@ const boardSchema = new mongoose.Schema({
     type: String,
     trim: true,
     required: true,
-    lowercase: true,  
   },
   columns: {
     type: [
@@ -18,30 +17,35 @@ const boardSchema = new mongoose.Schema({
         title: {
           type: String,
           required: true,
+          trim: true,
         },
         internalStatus: {
           type: String, 
           required: true,
-          enum: ["wishlist", "applied", "interviewing", "offer", "rejected"],
-          default: "wishlist" // 'wishlist' is the starting point
+          // Added 'archived' to handle rejected/hidden jobs without breaking the 4-stage flow
+          enum: ["wishlist", "applied", "interviewing", "offer", "rejected", "archived"],
+          default: "wishlist"
         },
         color: {
           type: String,
-          default: "#9333ea" // Defaulting to theme's Primary color : Purple
+          default: "#9333ea" 
+        },
+        // position field ensures columns stay in the correct order after a refresh
+        position: {
+          type: Number,
+          required: true
         }
       },
     ],
-    // Initialize with default columns for new users
     default: [
-      { title: "Wishlist", internalStatus: "wishlist" },
-      { title: "Applied", internalStatus: "applied" },
-      { title: "Interviewing", internalStatus: "interviewing" },
-      { title: "Offers", internalStatus: "offer" }
+      { title: "Wishlist", internalStatus: "wishlist", position: 0, color: "#94a3b8" },
+      { title: "Applied", internalStatus: "applied", position: 1, color: "#3b82f6" },
+      { title: "Interviewing", internalStatus: "interviewing", position: 2, color: "#f59e0b" },
+      { title: "Offers", internalStatus: "offer", position: 3, color: "#10b981" }
     ]
   },
   isPrimary: {
     type: Boolean,
-    required: true,
     default: false
   }  
 }, {

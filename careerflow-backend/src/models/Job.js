@@ -11,6 +11,11 @@ const jobSchema = new mongoose.Schema({
         ref: "Board",
         required: true
     },
+    // The specific column the job belongs to within the board
+    columnId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true
+    },
     company: { 
         type: String, 
         trim: true, 
@@ -21,6 +26,7 @@ const jobSchema = new mongoose.Schema({
         trim: true, 
         required: true 
     },
+    // Current visual status (e.g., "wishlist", "applied")
     status: {
         type: String,
         enum: ["wishlist", "applied", "interviewing", "offer", "rejected"],
@@ -28,17 +34,10 @@ const jobSchema = new mongoose.Schema({
         default: "wishlist"  
     },
     salary: {
-        min: { 
-            type: Number, 
-            required: true 
-        },
-        max: { 
-            type: Number, 
-            required: true 
-        },
+        min: { type: Number, default: 0 },
+        max: { type: Number, default: 0 },
         currency: { 
             type: String, 
-            required: true, 
             trim: true, 
             uppercase: true,  
             default: "USD"
@@ -46,14 +45,46 @@ const jobSchema = new mongoose.Schema({
     },
     url: {
         type: String,
-        required: true,
-        trim: true
+        trim: true,
+        default: ""
     },
-    appliedAt: {
-        type: Date,
-        required: true,  
-        default: Date.now
+    
+    // ==========================================
+    // Analytics & Milestones
+    // ==========================================
+    isApplied: { type: Boolean, default: false },
+    isInterviewing: { type: Boolean, default: false },
+    isOffered: { type: Boolean, default: false },
+    isRejected: { type: Boolean, default: false },
+
+    dates: {
+        wishlistAt: { type: Date, default: Date.now }, // Initial entry date
+        applyDeadlineAt: { type: Date }, // NEW: User's goal for when to apply
+        appliedAt: { type: Date },       // When moved to "Applied"
+        interviewingAt: { type: Date },  // When moved to "Interviewing"
+        actualInterviewDate: { type: Date }, // NEW: Scheduled meeting time
+        offerAt: { type: Date },
+        rejectedAt: { type: Date }
     },
+
+    // ==========================================
+    // Proactive Reminders
+    // ==========================================
+    // Supports custom leads (e.g., 2 days or 3 days) for different events
+    reminders: [
+        {
+            type: { 
+                type: String, 
+                enum: ["apply", "interview", "follow-up"],
+                required: true 
+            },
+            reminderDate: { type: Date, required: true }, // Calculated based on actualInterviewDate or applyDeadline
+            leadDays: { type: Number, default: 2 },
+            isNotified: { type: Boolean, default: false },
+            isActive: { type: Boolean, default: true }
+        }
+    ],
+
     notes: {
         type: String,  
         trim: true,

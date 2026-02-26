@@ -3,6 +3,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const app = express();
 const authRoutes= require('./routes/authRoutes')
+const boardRoutes= require('./routes/boardRoutes')
 
 
 const corsOptions = {
@@ -27,6 +28,7 @@ app.use(cookieParser());
 // example: app.use("/auth", authRoutes)
 
 app.use("/auth", authRoutes)
+app.use("/api/boards", boardRoutes);
 
 app.get('/', (req, res) => {
     res.status(200).json({
