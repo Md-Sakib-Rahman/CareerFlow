@@ -15,6 +15,7 @@ import KanbanBoard from "../../Components/Dashboard/Kanban/KanbanBoard";
 import AddJobModal from "../../Components/Dashboard/AddJobModal/AddJobModal";
 import EditJobModal from "../../Components/Dashboard/EditJobModal/EditJobModal";
 import ViewJobModal from "../../Components/Dashboard/ViewJobModal/ViewJobModal";
+import SetReminderModal from "../../Components/Dashboard/SetReminderModal/SetReminderModal";
 const DashboardPage = () => {
   const dispatch = useDispatch();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -130,6 +131,13 @@ const DashboardPage = () => {
       {/* Edit Modal */}
       {activeModal === 'edit' && (
         <EditJobModal 
+          job={selectedJob} 
+          onClose={() => setActiveModal(null)} 
+        />
+      )}
+      {/* reminder Modal */}
+      {activeModal === 'reminder' && (
+        <SetReminderModal 
           job={selectedJob} 
           onClose={() => setActiveModal(null)} 
         />
