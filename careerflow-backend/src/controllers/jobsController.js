@@ -89,114 +89,6 @@ const getBoardJobs = async (req, res) => {
  * @route   PATCH /api/jobs/:id
  * @access  Private
  */
-// const updateJob = async (req, res) => {
-//   try {
-//     const jobId = req.params.id;
-//     const userId = req.user.id;
-//     const { status, columnId, dates, reminderLeadDays, ...otherUpdates } = req.body;
-
-//     const job = await Job.findOne({ _id: jobId, userId });
-//     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
-
-//     // 1. GUARDRAIL
-//     if (columnId && status) {
-//       const board = await Board.findById(job.boardId);
-//       const targetColumn = board.columns.id(columnId);
-//       if (targetColumn.internalStatus !== status) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Mismatch: Column '${targetColumn.title}' is for ${targetColumn.internalStatus}, not ${status}.`
-//         });
-//       }
-//     }
-
-//     // 2. PROACTIVE CLEANUP (Using Database Queries)
-//     const isStatusChange = status && status !== job.status;
-//     const isColumnChange = columnId && columnId !== job.columnId?.toString();
-
-//     if (isStatusChange || isColumnChange) {
-//       const targetStatus = status || job.status;
-
-//       // Delete obsolete standalone reminders
-//       if (targetStatus === "applied") {
-//         await Reminder.deleteMany({ jobId: job._id, type: "apply" });
-//       } 
-//       else if (targetStatus === "interviewing") {
-//         await Reminder.deleteMany({ jobId: job._id, type: { $in: ["apply", "interview"] } });
-//       } 
-//       else if (["offer", "rejected"].includes(targetStatus)) {
-//         await Reminder.deleteMany({ jobId: job._id });
-//       }
-
-//       switch (targetStatus) {
-//         case "applied":
-//           if (!job.isApplied) { job.isApplied = true; job.dates.appliedAt = new Date(); }
-//           break;
-//         case "interviewing":
-//           if (!job.isApplied) { job.isApplied = true; job.dates.appliedAt = new Date(); }
-//           if (!job.isInterviewing) { job.isInterviewing = true; job.dates.interviewingAt = new Date(); }
-//           break;
-//         case "offer":
-//           if (!job.isOffered) { job.isOffered = true; job.dates.offerAt = new Date(); }
-//           break;
-//         case "rejected":
-//           if (!job.isRejected) { job.isRejected = true; job.dates.rejectedAt = new Date(); }
-//           break;
-//       }
-//       job.status = targetStatus;
-//     }
-
-//     // Safely merge dates
-//     if (dates) {
-//       for (const key in dates) {
-//         job.dates[key] = dates[key];
-//       }
-//     }
-
-//     // 3. PROACTIVE REMINDERS (Upsert Logic)
-//     if (dates && dates.actualInterviewDate) {
-//       if (job.status !== "applied" && job.status !== "interviewing") {
-//          return res.status(400).json({ 
-//            success: false, 
-//            message: "Can only schedule interviews while in 'Applied' or 'Interviewing' status." 
-//          });
-//       }
-
-//       const targetDate = new Date(dates.actualInterviewDate);
-//       const lead = reminderLeadDays || 2;
-//       const rDate = new Date(targetDate);
-//       rDate.setDate(rDate.getDate() - lead);
-
-//       // Upsert: Updates the existing interview reminder or creates a new one
-//       await Reminder.findOneAndUpdate(
-//         { jobId: job._id, type: "interview" },
-//         {
-//           userId,
-//           reminderDate: rDate,
-//           targetDate: targetDate,
-//           leadDays: lead,
-//           isActive: true
-//         },
-//         { upsert: true, new: true }
-//       );
-
-//       job.dates.actualInterviewDate = targetDate; 
-//     }
-
-//     // 4. Final Save
-//     if (columnId) job.columnId = columnId;
-//     Object.assign(job, otherUpdates);
-
-//     const updatedJob = await job.save();
-
-//     // Re-fetch the job so the populated virtuals are returned in the response
-//     const finalJob = await Job.findById(updatedJob._id).populate("reminders");
-
-//     res.status(200).json({ success: true, data: finalJob });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
 const updateJob = async (req, res) => {
   try {
     const jobId = req.params.id;
@@ -236,13 +128,21 @@ const updateJob = async (req, res) => {
         await Reminder.deleteMany({ jobId: job._id });
       }
 
+      // ==========================================
       // Analytics & Milestone Funnel Logic
-      // If moving backwards, we must wipe downstream flags to keep analytics accurate
+      // ==========================================
+      // If moving backwards, we wipe downstream flags AND dates to keep data clean
+      
       if (targetStatus === "wishlist") {
         job.isApplied = false; 
         job.isInterviewing = false; 
         job.isOffered = false; 
         job.isRejected = false;
+        // Clear dates
+        job.dates.appliedAt = undefined;
+        job.dates.interviewingAt = undefined;
+        job.dates.offerAt = undefined;
+        job.dates.rejectedAt = undefined;
       } 
       else if (targetStatus === "applied") {
         job.isApplied = true; 
@@ -251,6 +151,9 @@ const updateJob = async (req, res) => {
         job.isInterviewing = false; 
         job.isOffered = false; 
         job.isRejected = false;
+        job.dates.interviewingAt = undefined;
+        job.dates.offerAt = undefined;
+        job.dates.rejectedAt = undefined;
       } 
       else if (targetStatus === "interviewing") {
         job.isApplied = true; 
@@ -260,6 +163,8 @@ const updateJob = async (req, res) => {
         // Reset downstream
         job.isOffered = false; 
         job.isRejected = false;
+        job.dates.offerAt = undefined;
+        job.dates.rejectedAt = undefined;
       } 
       else if (targetStatus === "offer") {
         job.isApplied = true; 
@@ -267,12 +172,13 @@ const updateJob = async (req, res) => {
         job.isOffered = true;
         job.dates.offerAt = job.dates.offerAt || new Date();
         job.isRejected = false;
+        job.dates.rejectedAt = undefined;
       } 
       else if (targetStatus === "rejected") {
-        // Rejection is an end-state. We keep previous milestone flags as true 
-        // (so you get credit for the interview), but mark it rejected.
         job.isRejected = true;
         job.dates.rejectedAt = job.dates.rejectedAt || new Date();
+        // Note: We usually keep previous dates for 'rejected' status 
+        // to analyze how far the candidate got before the rejection.
       }
       
       job.status = targetStatus;
