@@ -43,6 +43,7 @@ const jobSchema = new mongoose.Schema({
             default: "USD"
         }
     },
+    location: { type: String, default: "" },
     url: {
         type: String,
         trim: true,

@@ -1,12 +1,15 @@
 import React from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import JobCard from "./JobCard";
 
-const KanbanColumn = ({ column, jobs }) => {
+const KanbanColumn = ({ column, jobs, onAction }) => {
   const { setNodeRef } = useDroppable({
     id: column._id,
-    data: { internalStatus: column.internalStatus }
+    data: { internalStatus: column.internalStatus },
   });
 
   const columnJobs = jobs.filter((job) => job.columnId === column._id);
@@ -24,13 +27,16 @@ const KanbanColumn = ({ column, jobs }) => {
         </div>
       </div>
 
-      <div ref={setNodeRef} className="flex-1 overflow-y-auto custom-scrollbar px-1 min-h-[150px]">
+      <div
+        ref={setNodeRef}
+        className="flex-1 overflow-y-visible overflow-x-visible px-1 min-h-[150px] custom-scrollbar"
+      >
         <SortableContext items={jobIds} strategy={verticalListSortingStrategy}>
           {columnJobs.map((job) => (
-            <JobCard key={job._id} job={job} />
+            <JobCard key={job._id} job={job} onAction={onAction}/>
           ))}
         </SortableContext>
-        
+
         {columnJobs.length === 0 && (
           <div className="h-24 border-2 border-dashed border-base-300 rounded-xl flex items-center justify-center text-base-content/40 text-sm">
             Drop jobs here
