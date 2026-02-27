@@ -176,6 +176,10 @@ const initialState = {
   jobs: [], // Jobs for the active board
   loading: false,
   error: null,
+  ui: {
+    selectedJob: null,
+    activeModal: null, // 'view', 'edit', 'reminder', 'addColumn'
+  }
 };
 
 // ==========================================
@@ -191,11 +195,22 @@ const boardSlice = createSlice({
       state.activeBoard = action.payload;
     },
     // Clean up state on logout
-    clearBoardState: (state) => {
-      state.boards = [];
-      state.activeBoard = null;
-      state.jobs = [];
-      state.error = null;
+    // clearBoardState: (state) => {
+    //   state.boards = [];
+    //   state.activeBoard = null;
+    //   state.jobs = [];
+    //   state.error = null;
+    // },
+    setModal: (state, action) => {
+      state.ui.activeModal = action.payload.modal;
+      state.ui.selectedJob = action.payload.job || null;
+    },
+    clearModal: (state) => {
+      state.ui.activeModal = null;
+      state.ui.selectedJob = null;
+    },
+    clearBoardState: () => {
+      return initialState;
     },
   },
   extraReducers: (builder) => {
@@ -281,5 +296,5 @@ const boardSlice = createSlice({
   },
 });
 
-export const { setActiveBoard, clearBoardState } = boardSlice.actions;
+export const { setActiveBoard, clearBoardState, setModal, clearModal } = boardSlice.actions;
 export default boardSlice.reducer;

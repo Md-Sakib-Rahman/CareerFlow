@@ -1,4 +1,5 @@
 import React from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -15,7 +16,22 @@ import {
   X,
 } from "lucide-react";
 
-const JobCard = ({ job, isOverlay, onAction, columns }) => {
+// Redux Actions
+import { 
+  setModal, 
+  moveToNextStage, 
+  moveToPreviousStage, 
+  rejectJobAction, 
+  deleteJob 
+} from "../../../Redux/board/boardSlice";
+
+const JobCard = ({ job, isOverlay }) => {
+  const dispatch = useDispatch();
+  
+  // 1. Get column configuration directly from Redux instead of props
+  const { activeBoard } = useSelector((state) => state.board);
+  const columns = activeBoard?.columns || [];
+
   const {
     attributes,
     listeners,
@@ -25,24 +41,50 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
     isDragging,
   } = useSortable({ id: job._id, data: { ...job } });
 
-  const currentColumnIndex = columns?.findIndex(
-    (col) => col._id === job.columnId,
-  );
-  
-  console.log(currentColumnIndex )
-  console.log(job.columnId)
+  // 2. Logic for conditional rendering of stage buttons
   const isFirstStage = job.status === "wishlist";
   const isFinalStage = job.status === "offer" || job.status === "rejected";
-  // Salary Formatter Helper
+
+  // 3. Salary Formatter Helper
   const formatSalary = (salary) => {
     if (!salary || (!salary.min && !salary.max)) return null;
-
     const min = salary.min >= 1000 ? `${salary.min / 1000}k` : salary.min;
     const max = salary.max >= 1000 ? `${salary.max / 1000}k` : salary.max;
 
     if (salary.min === salary.max)
       return `${salary.currency === "USD" ? "$" : ""}${min} ${salary.currency !== "USD" ? salary.currency : ""}`;
     return `${salary.currency === "USD" ? "$" : ""}${min} - ${max} ${salary.currency !== "USD" ? salary.currency : ""}`;
+  };
+
+  // 4. Integrated Action Handler (Direct Redux Dispatches)
+  const handleAction = (e, actionType) => {
+    e.stopPropagation();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    switch (actionType) {
+      case "next":
+        dispatch(moveToNextStage({ job, columns }));
+        break;
+      case "prev":
+        dispatch(moveToPreviousStage({ job, columns }));
+        break;
+      case "reject_quick":
+        if (window.confirm(`Mark ${job.company} as Rejected?`)) {
+          dispatch(rejectJobAction({ job, columns }));
+        }
+        break;
+      case "delete":
+        if (window.confirm(`Permanently delete ${job.title}?`)) {
+          dispatch(deleteJob(job._id));
+        }
+        break;
+      // Default handles "view", "edit", and "reminder" modals
+      default:
+        dispatch(setModal({ modal: actionType, job }));
+        break;
+    }
   };
 
   const style = isOverlay
@@ -56,14 +98,6 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
     month: "short",
     day: "numeric",
   });
-
-  const handleAction = (e, actionType) => {
-    e.stopPropagation();
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    onAction(actionType, job);
-  };
 
   if (isDragging && !isOverlay) {
     return (
@@ -84,7 +118,7 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
       className={`bg-base-100 border border-base-300 rounded-xl p-4 group relative
         ${
           isOverlay
-            ? "shadow-2xl ring-2 ring-primary m-0 cursor-grabbing scale-105 pointer-events-none z-[1000]"
+            ? "shadow-2xl ring-2 ring-primary m-0 cursor-grabbing scale-105 pointer-events-none z-"
             : "shadow-sm hover:shadow-md hover:bg-base-200 cursor-grab active:cursor-grabbing mb-3 transition-colors"
         }`}
     >
@@ -108,7 +142,7 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
             </label>
             <ul
               tabIndex={0}
-              className="dropdown-content z-[999] menu p-2 shadow-2xl bg-base-100 border border-base-300 rounded-xl w-52 text-sm mt-0"
+              className="dropdown-content z- menu p-2 shadow-2xl bg-base-100 border border-base-300 rounded-xl w-52 text-sm mt-0"
             >
               <li>
                 <button onClick={(e) => handleAction(e, "view")}>
@@ -125,19 +159,20 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
                   <Bell size={16} /> Set Reminder
                 </button>
               </li>
+              
+              {/* Previous Stage Logic */}
               {!isFirstStage && (
                 <li>
                   <button
                     onClick={(e) => handleAction(e, "prev")}
                     className="text-warning font-medium"
                   >
-                    <ArrowRight size={16} className="rotate-180" /> Previous
-                    Stage
+                    <ArrowRight size={16} className="rotate-180" /> Previous Stage
                   </button>
                 </li>
               )}
 
-              {/* 2. Conditional Next Stage */}
+              {/* Next Stage Logic */}
               {!isFinalStage && (
                 <li>
                   <button
@@ -149,7 +184,7 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
                 </li>
               )}
 
-              {/* 3. New Reject Option (Only show if not already rejected) */}
+              {/* Reject Logic */}
               {job.status !== "rejected" && (
                 <li>
                   <button
@@ -160,6 +195,7 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
                   </button>
                 </li>
               )}
+              
               {job.url && (
                 <li>
                   <a href={job.url} target="_blank" rel="noreferrer">
@@ -187,7 +223,6 @@ const JobCard = ({ job, isOverlay, onAction, columns }) => {
           <span className="truncate font-medium">{job.company}</span>
         </div>
 
-        {/* SALARY DISPLAY */}
         {formatSalary(job.salary) && (
           <div className="flex items-center text-[11px] text-success/80 gap-2">
             <DollarSign size={13} />
