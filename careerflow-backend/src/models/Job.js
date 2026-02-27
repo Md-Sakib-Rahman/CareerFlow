@@ -58,32 +58,14 @@ const jobSchema = new mongoose.Schema({
     isRejected: { type: Boolean, default: false },
 
     dates: {
-        wishlistAt: { type: Date, default: Date.now }, // Initial entry date
-        applyDeadlineAt: { type: Date }, // NEW: User's goal for when to apply
-        appliedAt: { type: Date },       // When moved to "Applied"
-        interviewingAt: { type: Date },  // When moved to "Interviewing"
-        actualInterviewDate: { type: Date }, // NEW: Scheduled meeting time
+        wishlistAt: { type: Date, default: Date.now }, 
+        applyDeadlineAt: { type: Date }, 
+        appliedAt: { type: Date },       
+        interviewingAt: { type: Date },  
+        actualInterviewDate: { type: Date }, 
         offerAt: { type: Date },
         rejectedAt: { type: Date }
     },
-
-    // ==========================================
-    // Proactive Reminders
-    // ==========================================
-    // Supports custom leads (e.g., 2 days or 3 days) for different events
-    reminders: [
-        {
-            type: { 
-                type: String, 
-                enum: ["apply", "interview", "follow-up"],
-                required: true 
-            },
-            reminderDate: { type: Date, required: true }, // Calculated based on actualInterviewDate or applyDeadline
-            leadDays: { type: Number, default: 2 },
-            isNotified: { type: Boolean, default: false },
-            isActive: { type: Boolean, default: true }
-        }
-    ],
 
     notes: {
         type: String,  
@@ -93,6 +75,22 @@ const jobSchema = new mongoose.Schema({
 }, {
     timestamps: true  
 });
+
+// ==========================================
+// Virtuals (Linking the separate Reminder collection)
+// ==========================================
+// This allows us to populate the jobs with their reminders
+// without actually storing the reminders inside this document.
+jobSchema.virtual('reminders', {
+    ref: 'Reminder',         // The model to use
+    localField: '_id',       // Find reminders where `localField`
+    foreignField: 'jobId',   // is equal to `foreignField`
+    justOne: false
+});
+
+// Ensure virtual fields are serialized when sending JSON to the frontend
+jobSchema.set('toJSON', { virtuals: true });
+jobSchema.set('toObject', { virtuals: true });
 
 const Job = mongoose.model("Job", jobSchema);
 module.exports = Job;
