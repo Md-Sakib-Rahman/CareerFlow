@@ -124,17 +124,19 @@ export const moveToPreviousStage = createAsyncThunk(
         jobId: job._id,
         columnId: prevColumn._id,
         status: prevColumn.internalStatus,
-      })
+      }),
     ).unwrap();
-  }
+  },
 );
 
 // QUICK REJECT
 export const rejectJobAction = createAsyncThunk(
   "board/rejectJobAction",
   async ({ job, columns }, { dispatch, rejectWithValue }) => {
-    const rejectedColumn = columns.find(col => col.internalStatus === "rejected");
-    
+    const rejectedColumn = columns.find(
+      (col) => col.internalStatus === "rejected",
+    );
+
     if (!rejectedColumn) return rejectWithValue("Rejected column not found");
 
     return dispatch(
@@ -142,9 +144,27 @@ export const rejectJobAction = createAsyncThunk(
         jobId: job._id,
         columnId: rejectedColumn._id,
         status: "rejected",
-      })
+      }),
     ).unwrap();
-  }
+  },
+);
+export const updateBoardColumns = createAsyncThunk(
+  "board/updateBoardColumns",
+  async ({ boardId, columns }, { rejectWithValue }) => {
+    try {
+      const response = await privateApi.patch(
+        `/api/boards/${boardId}/columns`,
+        {
+          columns,
+        },
+      );
+      return response.data; // Should return the updated board object
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update columns",
+      );
+    }
+  },
 );
 // ==========================================
 // INITIAL STATE
@@ -251,7 +271,13 @@ const boardSlice = createSlice({
       // delete jobs
       .addCase(deleteJob.fulfilled, (state, action) => {
         state.jobs = state.jobs.filter((job) => job._id !== action.payload);
-      });
+      })
+      // update board column
+      .addCase(updateBoardColumns.fulfilled, (state, action) => {
+      // Update the active board with the new column configuration
+      state.activeBoard = action.payload.data;
+      state.loading = false;
+    });
   },
 });
 

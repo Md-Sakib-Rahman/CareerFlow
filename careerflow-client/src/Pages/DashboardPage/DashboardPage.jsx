@@ -8,6 +8,7 @@ import {
   moveToNextStage,
   moveToPreviousStage,
   rejectJobAction,
+  updateBoardColumns,
 } from "../../Redux/board/boardSlice";
 import StatCards from "../../Components/Dashboard/StatCards/StatCards";
 import LoadingSpinner from "../../Components/Shared/LoadingSpinner/LoadingSpinner";
@@ -16,40 +17,52 @@ import AddJobModal from "../../Components/Dashboard/AddJobModal/AddJobModal";
 import EditJobModal from "../../Components/Dashboard/EditJobModal/EditJobModal";
 import ViewJobModal from "../../Components/Dashboard/ViewJobModal/ViewJobModal";
 import SetReminderModal from "../../Components/Dashboard/SetReminderModal/SetReminderModal";
+import AddColumnModal from "../../Components/Dashboard/AddColumnModal/AddColumnModal";
 const DashboardPage = () => {
   const dispatch = useDispatch();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
-
+  const [isColModalOpen, setIsColModalOpen] = useState(false);
   const { user } = useSelector((state) => state.auth);
   const { activeBoard, jobs, loading } = useSelector((state) => state.board);
 
   const handleCardAction = (type, job) => {
     setSelectedJob(job);
 
-    switch(type) {
-    case "next":
-      dispatch(moveToNextStage({ job, columns: activeBoard.columns }));
-      break;
-    case "prev":
-      dispatch(moveToPreviousStage({ job, columns: activeBoard.columns }));
-      break;
-    case "reject_quick":
-      if(window.confirm(`Mark ${job.company} as Rejected?`)) {
-        dispatch(rejectJobAction({ job, columns: activeBoard.columns }));
-      }
-      break;
-    case "delete":
-      if(window.confirm(`Are you sure? This will permanently delete ${job.title}.`)) {
-        dispatch(deleteJob(job._id));
-      }
-      break;
-    default:
-      setActiveModal(type);
-  }
+    switch (type) {
+      case "next":
+        dispatch(moveToNextStage({ job, columns: activeBoard.columns }));
+        break;
+      case "prev":
+        dispatch(moveToPreviousStage({ job, columns: activeBoard.columns }));
+        break;
+      case "reject_quick":
+        if (window.confirm(`Mark ${job.company} as Rejected?`)) {
+          dispatch(rejectJobAction({ job, columns: activeBoard.columns }));
+        }
+        break;
+      case "delete":
+        if (
+          window.confirm(
+            `Are you sure? This will permanently delete ${job.title}.`,
+          )
+        ) {
+          dispatch(deleteJob(job._id));
+        }
+        break;
+      default:
+        setActiveModal(type);
+    }
   };
-
+  const handleColumnUpdate = (updatedColumns) => {
+    dispatch(
+      updateBoardColumns({
+        boardId: activeBoard._id,
+        columns: updatedColumns,
+      }),
+    );
+  };
   useEffect(() => {
     dispatch(fetchMyBoards());
   }, [dispatch]);
@@ -96,6 +109,18 @@ const DashboardPage = () => {
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
             Application Pipeline
           </h2>
+          <button
+            onClick={() => setIsColModalOpen(true)}
+            className="btn btn-ghost btn-xs text-primary gap-1"
+          >
+            + Add Stage
+          </button>
+          <AddColumnModal
+            isOpen={isColModalOpen}
+            onClose={() => setIsColModalOpen(false)}
+            activeBoard={activeBoard}
+            onUpdateColumn={handleColumnUpdate}  
+          />
         </div>
 
         <div className="flex-1 w-full overflow-x-auto overflow-y-visible custom-scrollbar pb-4">
@@ -104,6 +129,8 @@ const DashboardPage = () => {
               columns={activeBoard.columns}
               initialJobs={jobs}
               onAction={handleCardAction}
+              activeBoard={activeBoard}
+              onUpdateColumn={handleColumnUpdate}
             />
           ) : (
             <div className="h-64 flex items-center justify-center text-base-content/50 border-2 border-dashed border-base-300 rounded-xl mt-4">
@@ -121,25 +148,19 @@ const DashboardPage = () => {
 
       {/* Render Modals based on activeModal state */}
       {/* View Modal */}
-      {activeModal === 'view' && (
-        <ViewJobModal 
-          job={selectedJob} 
-          onClose={() => setActiveModal(null)} 
-        />
+      {activeModal === "view" && (
+        <ViewJobModal job={selectedJob} onClose={() => setActiveModal(null)} />
       )}
 
       {/* Edit Modal */}
-      {activeModal === 'edit' && (
-        <EditJobModal 
-          job={selectedJob} 
-          onClose={() => setActiveModal(null)} 
-        />
+      {activeModal === "edit" && (
+        <EditJobModal job={selectedJob} onClose={() => setActiveModal(null)} />
       )}
       {/* reminder Modal */}
-      {activeModal === 'reminder' && (
-        <SetReminderModal 
-          job={selectedJob} 
-          onClose={() => setActiveModal(null)} 
+      {activeModal === "reminder" && (
+        <SetReminderModal
+          job={selectedJob}
+          onClose={() => setActiveModal(null)}
         />
       )}
     </div>

@@ -66,6 +66,50 @@ const getMyBoards = async (req, res) => {
  * @desc    Add or Update columns in an existing board
  * @route   PATCH /api/boards/:id/columns
  */
+// const updateBoardColumns = async (req, res) => {
+//   try {
+//     const { columns } = req.body; 
+//     const boardId = req.params.id;
+
+//     const board = await Board.findOne({ _id: boardId, userId: req.user.id });
+//     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
+
+//     // --- 1. TYPE INTEGRITY CHECK ---
+//     const requiredTypes = ["wishlist", "applied", "interviewing", "offer", "rejected"];
+//     const incomingTypes = columns.map(col => col.internalStatus);
+    
+//     const missingTypes = requiredTypes.filter(type => !incomingTypes.includes(type));
+//     if (missingTypes.length > 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Missing required column types: ${missingTypes.join(", ")}. Every board must have at least one of each.`
+//       });
+//     }
+
+//     // --- 2. HANDLE COLUMN DELETION (Safety Check) ---
+//     const currentColumnIds = board.columns.map(col => col._id.toString());
+//     const incomingColumnIds = columns.map(col => col._id?.toString()).filter(Boolean);
+//     const deletedColumnIds = currentColumnIds.filter(id => !incomingColumnIds.includes(id));
+
+//     if (deletedColumnIds.length > 0) {
+//       const jobsInDeletedColumns = await Job.countDocuments({ columnId: { $in: deletedColumnIds } });
+//       if (jobsInDeletedColumns > 0) {
+//         return res.status(400).json({
+//           success: false,
+//           message: `Cannot delete column(s). Move the ${jobsInDeletedColumns} jobs inside them first.`
+//         });
+//       }
+//     }
+
+//     // --- 3. SAVE ---
+//     board.columns = columns; // Mongoose will handle the rest
+//     const updatedBoard = await board.save();
+
+//     res.status(200).json({ success: true, data: updatedBoard });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
 const updateBoardColumns = async (req, res) => {
   try {
     const { columns } = req.body; 
@@ -74,44 +118,60 @@ const updateBoardColumns = async (req, res) => {
     const board = await Board.findOne({ _id: boardId, userId: req.user.id });
     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
 
-    // --- 1. HANDLE COLUMN DELETION ---
+    // 1. HIERARCHY DEFINITION (Weight-based)
+    const hierarchyOrder = {
+      wishlist: 1,
+      applied: 2,
+      interviewing: 3,
+      offer: 4,
+      rejected: 5
+    };
+
+    // 2. TYPE INTEGRITY CHECK (Must have at least one of each)
+    const requiredTypes = Object.keys(hierarchyOrder);
+    const incomingTypes = columns.map(col => col.internalStatus);
+    const missingTypes = requiredTypes.filter(type => !incomingTypes.includes(type));
+
+    if (missingTypes.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required types: ${missingTypes.join(", ")}.`
+      });
+    }
+
+    // 3. DELETE SAFETY CHECK (Same as before)
     const currentColumnIds = board.columns.map(col => col._id.toString());
     const incomingColumnIds = columns.map(col => col._id?.toString()).filter(Boolean);
-    
-    // Find columns that are in the database but NOT in the new request
     const deletedColumnIds = currentColumnIds.filter(id => !incomingColumnIds.includes(id));
 
     if (deletedColumnIds.length > 0) {
-      // Check if any of these columns contain jobs
-      const jobsInDeletedColumns = await Job.countDocuments({ 
-        columnId: { $in: deletedColumnIds } 
-      });
-
+      const jobsInDeletedColumns = await Job.countDocuments({ columnId: { $in: deletedColumnIds } });
       if (jobsInDeletedColumns > 0) {
         return res.status(400).json({
           success: false,
-          message: `Cannot delete column(s). There are ${jobsInDeletedColumns} jobs still assigned to them. Move the jobs first.`
+          message: `Move the ${jobsInDeletedColumns} jobs out of columns before deleting.`
         });
       }
     }
 
-    // --- 2. VALIDATE HIERARCHY (Keep your existing logic) ---
-    const hierarchyOrder = ["wishlist", "applied", "interviewing", "offer", "rejected", "archived"];
-    const sortedColumns = [...columns].sort((a, b) => a.position - b.position);
-
-    for (let i = 0; i < sortedColumns.length - 1; i++) {
-      if (hierarchyOrder.indexOf(sortedColumns[i].internalStatus) > 
-          hierarchyOrder.indexOf(sortedColumns[i + 1].internalStatus)) {
-        return res.status(400).json({
-          success: false,
-          message: `Logical Error: A ${sortedColumns[i+1].internalStatus} column cannot come after a ${sortedColumns[i].internalStatus} column.`
-        });
+    // 4. LOGICAL SORTING & INDEXING
+    // We sort primarily by the user's intended position, 
+    // but secondarily by the funnel hierarchy to prevent logic bugs.
+    const finalizedColumns = [...columns].sort((a, b) => {
+      // First, sort by internal funnel logic
+      if (hierarchyOrder[a.internalStatus] !== hierarchyOrder[b.internalStatus]) {
+        return hierarchyOrder[a.internalStatus] - hierarchyOrder[b.internalStatus];
       }
-    }
+      // Second, within the SAME type (e.g. Round 1 vs Round 2), use the user's position
+      return (a.position || 0) - (b.position || 0);
+    }).map((col, index) => ({
+      ...col,
+      position: index // Reset clean indexing (0, 1, 2...)
+    }));
 
-    // --- 3. SAVE ---
+    // 5. SAVE
+    board.columns = finalizedColumns;
     board.markModified('columns'); 
-    board.columns = columns;
     const updatedBoard = await board.save();
 
     res.status(200).json({ success: true, data: updatedBoard });

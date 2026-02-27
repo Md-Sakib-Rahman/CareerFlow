@@ -6,7 +6,7 @@ import { updateJobColumn } from "../../../Redux/board/boardSlice";
 import KanbanColumn from "./KanbanColumn";
 import JobCard from "./JobCard";
 import { createPortal } from "react-dom";
-const KanbanBoard = ({ columns, initialJobs, onAction }) => {
+const KanbanBoard = ({ columns, initialJobs, onAction, onUpdateColumn, activeBoard }) => {
   const dispatch = useDispatch();
   const [localJobs, setLocalJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);  
@@ -74,7 +74,7 @@ const handleDragStart = (event) => {
     >
       <div className="flex gap-4 h-full w-full">
         {columns.map((column) => (
-          <KanbanColumn key={column._id} column={column} jobs={localJobs} onAction={onAction}/>
+          <KanbanColumn key={column._id} column={column} jobs={localJobs} onAction={onAction} activeBoard={activeBoard} onUpdateColumn={onUpdateColumn} />
         ))}
       </div>
 
