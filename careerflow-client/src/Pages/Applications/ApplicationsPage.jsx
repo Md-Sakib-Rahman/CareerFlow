@@ -114,9 +114,9 @@ const ApplicationsPage = () => {
         </div>
 
         {/* Filters Toolbar */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap max-sm:flex-col items-center gap-3 w-full md:w-auto">
           {/* Search */}
-          <div className="relative flex-1 md:w-56">
+          <div className="relative flex-1 md:w-56 max-sm:w-full">
             <Search
               size={16}
               className="absolute left-3 top-3 text-base-content/40"
@@ -131,15 +131,15 @@ const ApplicationsPage = () => {
           </div>
 
           {/* Status Filter */}
-          <div className="relative">
+          <div className="relative max-sm:w-full">
             <Filter
               size={14}
-              className="absolute left-3 top-3.5 text-base-content/40 pointer-events-none"
+              className="absolute left-3 top-3.5 text-base-content/40 pointer-events-none max-sm:w-full"
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="select select-sm h-10 pl-8 pr-8 bg-base-100 border-base-300 focus:border-primary rounded-xl"
+              className="select select-sm h-10 pl-8 pr-8 bg-base-100 border-base-300 focus:border-primary rounded-xl max-sm:w-full"
             >
               <option value="all">All Stages</option>
               <option value="wishlist">Wishlist</option>
@@ -151,17 +151,17 @@ const ApplicationsPage = () => {
           </div>
 
           {/* Single Minimum Salary Filter */}
-          <div className="relative">
+          <div className="relative max-sm:w-full">
             <DollarSign
               size={14}
-              className="absolute left-3 top-3.5 text-base-content/40 pointer-events-none"
+              className="absolute left-3 top-3.5 text-base-content/40 pointer-events-none max-sm:w-full"
             />
             <input
               type="number"
               placeholder="Min Salary..."
               value={minSalary}
               onChange={(e) => setMinSalary(e.target.value)}
-              className="input input-sm h-10 pl-8 w-32 md:w-40 bg-base-100 border-base-300 focus:border-primary rounded-xl"
+              className="input input-sm h-10 pl-8 w-32 md:w-40 bg-base-100 border-base-300 focus:border-primary rounded-xl max-sm:w-full"
             />
           </div>
         </div>

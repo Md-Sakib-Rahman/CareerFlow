@@ -12,6 +12,7 @@ import PrivateRoute from "./PrivateRoute";
 import DashboardLayout from "../Layouts/DashboardLayout/DashboardLayout";
 import DashboardPage from "../Pages/DashboardPage/DashboardPage";
 import ApplicationsPage from "../Pages/Applications/ApplicationsPage";
+import BoardsPage from "../Pages/Boards/BoardsPage";
 export const router = createBrowserRouter([
   {
     path: "/", // Landing page layout !
@@ -62,6 +63,10 @@ export const router = createBrowserRouter([
       { 
         path: "/applications", 
         element: <ApplicationsPage /> 
+      },
+      { 
+        path: "/boards", 
+        element: <BoardsPage /> 
       },
     ]
   },

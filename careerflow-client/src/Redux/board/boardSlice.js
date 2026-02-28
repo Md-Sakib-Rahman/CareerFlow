@@ -156,7 +156,29 @@ export const updateBoardColumns = createAsyncThunk(
     }
   },
 );
+export const createNewBoard = createAsyncThunk(
+  "board/createNewBoard",
+  async (name, { rejectWithValue }) => {
+    try {
+      const response = await privateApi.post("/api/boards", { name });
+      return response.data; // Expected { success: true, data: { ...boardObject } }
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to create board");
+    }
+  }
+);
 
+export const deleteBoardAction = createAsyncThunk(
+  "board/deleteBoard",
+  async (boardId, { rejectWithValue }) => {
+    try {
+      await privateApi.delete(`/api/boards/${boardId}`);
+      return boardId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to delete board");
+    }
+  }
+);
 // ==========================================
 // INITIAL STATE
 // ==========================================
@@ -281,7 +303,20 @@ const boardSlice = createSlice({
       .addCase(updateBoardColumns.fulfilled, (state, action) => {
         state.activeBoard = action.payload?.data || action.payload;
         state.loading = false;
-      });
+      })
+      // createNewBoard
+      .addCase(createNewBoard.fulfilled, (state, action) => {
+        const newBoard = action.payload?.data || action.payload;
+        if (newBoard) state.boards.push(newBoard);
+      })
+      // deleteBoardAction
+      .addCase(deleteBoardAction.fulfilled, (state, action) => {
+        state.boards = state.boards.filter((b) => b._id !== action.payload);
+        // If they delete the board they are currently looking at, clear it
+        if (state.activeBoard?._id === action.payload) {
+          state.activeBoard = state.boards.length > 0 ? state.boards : null;
+        }
+      })
   },
 });
 

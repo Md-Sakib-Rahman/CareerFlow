@@ -39,6 +39,7 @@ const DashboardLayout = () => {
   const navLinks = [
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={22} /> },
     { name: "Applications", path: "/applications", icon: <Briefcase size={22} /> },
+    { name: "Boards", path: "/boards", icon: <User size={22} /> },
     { name: "Profile", path: "/profile", icon: <User size={22} /> },
     { name: "Settings", path: "/settings", icon: <Settings size={22} /> },
   ];
