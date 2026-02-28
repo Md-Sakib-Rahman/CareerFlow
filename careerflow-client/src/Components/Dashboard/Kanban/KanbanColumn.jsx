@@ -32,16 +32,39 @@ const KanbanColumn = ({ column, jobs }) => {
   const jobIds = columnJobs.map((job) => job._id);
 
   // 2. ACTION: Update Column Title
-  const handleTitleSubmit = () => {
+  // const handleTitleSubmit = () => {
+  //   if (!newTitle.trim() || newTitle === column.title) {
+  //     setIsEditing(false);
+  //     setNewTitle(column.title);
+  //     return;
+  //   }
+
+  //   const updatedCols = activeBoard.columns.map((c) =>
+  //     c._id === column._id ? { ...c, title: newTitle } : c
+  //   );
+
+  //   dispatch(updateBoardColumns({ 
+  //     boardId: activeBoard._id, 
+  //     columns: updatedCols 
+  //   }));
+  //   setIsEditing(false);
+  // };
+const handleTitleSubmit = () => {
     if (!newTitle.trim() || newTitle === column.title) {
       setIsEditing(false);
       setNewTitle(column.title);
       return;
     }
 
-    const updatedCols = activeBoard.columns.map((c) =>
-      c._id === column._id ? { ...c, title: newTitle } : c
-    );
+    // 100% Accurate Data Sanitization:
+    // We rebuild the object explicitly to drop any hidden properties (__v, timestamps, etc.)
+    // that might trigger a 400 Bad Request on your backend's strict validation.
+    const updatedCols = activeBoard.columns.map((c) => ({
+      _id: c._id,
+      title: c._id === column._id ? newTitle.trim() : c.title,
+      internalStatus: c.internalStatus,
+      position: c.position || 0
+    }));
 
     dispatch(updateBoardColumns({ 
       boardId: activeBoard._id, 
@@ -49,7 +72,6 @@ const KanbanColumn = ({ column, jobs }) => {
     }));
     setIsEditing(false);
   };
-
   // 3. ACTION: Delete Column
   const handleDeleteColumn = () => {
     // Safety check: Is the column empty?
