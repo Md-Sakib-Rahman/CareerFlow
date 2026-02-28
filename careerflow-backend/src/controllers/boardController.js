@@ -66,50 +66,6 @@ const getMyBoards = async (req, res) => {
  * @desc    Add or Update columns in an existing board
  * @route   PATCH /api/boards/:id/columns
  */
-// const updateBoardColumns = async (req, res) => {
-//   try {
-//     const { columns } = req.body; 
-//     const boardId = req.params.id;
-
-//     const board = await Board.findOne({ _id: boardId, userId: req.user.id });
-//     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
-
-//     // --- 1. TYPE INTEGRITY CHECK ---
-//     const requiredTypes = ["wishlist", "applied", "interviewing", "offer", "rejected"];
-//     const incomingTypes = columns.map(col => col.internalStatus);
-    
-//     const missingTypes = requiredTypes.filter(type => !incomingTypes.includes(type));
-//     if (missingTypes.length > 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: `Missing required column types: ${missingTypes.join(", ")}. Every board must have at least one of each.`
-//       });
-//     }
-
-//     // --- 2. HANDLE COLUMN DELETION (Safety Check) ---
-//     const currentColumnIds = board.columns.map(col => col._id.toString());
-//     const incomingColumnIds = columns.map(col => col._id?.toString()).filter(Boolean);
-//     const deletedColumnIds = currentColumnIds.filter(id => !incomingColumnIds.includes(id));
-
-//     if (deletedColumnIds.length > 0) {
-//       const jobsInDeletedColumns = await Job.countDocuments({ columnId: { $in: deletedColumnIds } });
-//       if (jobsInDeletedColumns > 0) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Cannot delete column(s). Move the ${jobsInDeletedColumns} jobs inside them first.`
-//         });
-//       }
-//     }
-
-//     // --- 3. SAVE ---
-//     board.columns = columns; // Mongoose will handle the rest
-//     const updatedBoard = await board.save();
-
-//     res.status(200).json({ success: true, data: updatedBoard });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
 const updateBoardColumns = async (req, res) => {
   try {
     const { columns } = req.body; 

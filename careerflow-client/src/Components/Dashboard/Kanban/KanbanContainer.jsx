@@ -8,7 +8,6 @@ const KanbanContainer = () => {
   const dispatch = useDispatch();
   const { activeBoard, loading } = useSelector((state) => state.board);
   const { activeModal } = useSelector((state) => state.board.ui);
-
   if (loading && !activeBoard) return <div className="p-10 text-center">Loading Board...</div>;
 
   return (

@@ -5,12 +5,10 @@ import { privateApi } from "../../Axios/axiosInstance";
 // THUNKS
 // ==========================================
 
-// 1. Fetch all boards belonging to the logged-in user
 export const fetchMyBoards = createAsyncThunk(
   "board/fetchMyBoards",
   async (_, { rejectWithValue }) => {
     try {
-      // Assuming your route is GET /api/boards
       const response = await privateApi.get("/api/boards");
       return response.data;
     } catch (error) {
@@ -21,7 +19,6 @@ export const fetchMyBoards = createAsyncThunk(
   },
 );
 
-// 2. Fetch all jobs for a specific board
 export const fetchBoardJobs = createAsyncThunk(
   "board/fetchBoardJobs",
   async (boardId, { rejectWithValue }) => {
@@ -35,12 +32,11 @@ export const fetchBoardJobs = createAsyncThunk(
     }
   },
 );
-// 3. Update a job's column/status after drag-and-drop
+
 export const updateJobColumn = createAsyncThunk(
   "board/updateJobColumn",
   async ({ jobId, columnId, status }, { rejectWithValue }) => {
     try {
-      // Calls the PATCH /api/jobs/:id endpoint we built earlier
       const response = await privateApi.patch(`/api/jobs/${jobId}`, {
         columnId,
         status,
@@ -54,13 +50,12 @@ export const updateJobColumn = createAsyncThunk(
   },
 );
 
-// 4. Create a new job
 export const createNewJob = createAsyncThunk(
   "board/createNewJob",
   async (jobData, { rejectWithValue }) => {
     try {
       const response = await privateApi.post("/api/jobs", jobData);
-      return response.data; // The backend returns the newly created job
+      return response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to create job",
@@ -80,7 +75,7 @@ export const deleteJob = createAsyncThunk(
     }
   },
 );
-// 5. Update general job details (Metadata)
+
 export const updateJobDetails = createAsyncThunk(
   "board/updateJobDetails",
   async ({ jobId, updates }, { rejectWithValue }) => {
@@ -92,13 +87,12 @@ export const updateJobDetails = createAsyncThunk(
     }
   },
 );
-// MOVE to next stage (logic-based)
+
 export const moveToNextStage = createAsyncThunk(
   "board/moveToNextStage",
   async ({ job, columns }, { dispatch, rejectWithValue }) => {
     const currentIndex = columns.findIndex((col) => col._id === job.columnId);
     const nextColumn = columns[currentIndex + 1];
-
     if (!nextColumn) return rejectWithValue("Already at final stage");
 
     return dispatch(
@@ -110,13 +104,12 @@ export const moveToNextStage = createAsyncThunk(
     ).unwrap();
   },
 );
-// MOVE to previous stage
+
 export const moveToPreviousStage = createAsyncThunk(
   "board/moveToPreviousStage",
   async ({ job, columns }, { dispatch, rejectWithValue }) => {
     const currentIndex = columns.findIndex((col) => col._id === job.columnId);
     const prevColumn = columns[currentIndex - 1];
-
     if (!prevColumn) return rejectWithValue("Already at the beginning");
 
     return dispatch(
@@ -129,14 +122,12 @@ export const moveToPreviousStage = createAsyncThunk(
   },
 );
 
-// QUICK REJECT
 export const rejectJobAction = createAsyncThunk(
   "board/rejectJobAction",
   async ({ job, columns }, { dispatch, rejectWithValue }) => {
     const rejectedColumn = columns.find(
       (col) => col.internalStatus === "rejected",
     );
-
     if (!rejectedColumn) return rejectWithValue("Rejected column not found");
 
     return dispatch(
@@ -148,17 +139,16 @@ export const rejectJobAction = createAsyncThunk(
     ).unwrap();
   },
 );
+
 export const updateBoardColumns = createAsyncThunk(
   "board/updateBoardColumns",
   async ({ boardId, columns }, { rejectWithValue }) => {
     try {
       const response = await privateApi.patch(
         `/api/boards/${boardId}/columns`,
-        {
-          columns,
-        },
+        { columns },
       );
-      return response.data; // Should return the updated board object
+      return response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || "Failed to update columns",
@@ -166,20 +156,28 @@ export const updateBoardColumns = createAsyncThunk(
     }
   },
 );
+
 // ==========================================
 // INITIAL STATE
 // ==========================================
 
 const initialState = {
-  boards: [], // Array of user's boards
-  activeBoard: null, // The currently selected board (useful if they have multiple)
-  jobs: [], // Jobs for the active board
+  boards: [],
+  activeBoard: null,
+  jobs: [],
   loading: false,
   error: null,
   ui: {
     selectedJob: null,
-    activeModal: null, // 'view', 'edit', 'reminder', 'addColumn'
-  }
+    activeModal: null, // 'view', 'edit', 'reminder', 'addColumn', 'confirmAction'
+    modalConfig: {
+      title: "",
+      description: "",
+      confirmText: "",
+      actionType: null,
+      variant: "primary", // 'primary', 'error', 'warning'
+    },
+  },
 };
 
 // ==========================================
@@ -190,43 +188,46 @@ const boardSlice = createSlice({
   name: "board",
   initialState,
   reducers: {
-    // Manually set which board is active (e.g., if the user selects one from a dropdown)
     setActiveBoard: (state, action) => {
       state.activeBoard = action.payload;
     },
-    // Clean up state on logout
-    // clearBoardState: (state) => {
-    //   state.boards = [];
-    //   state.activeBoard = null;
-    //   state.jobs = [];
-    //   state.error = null;
-    // },
     setModal: (state, action) => {
       state.ui.activeModal = action.payload.modal;
       state.ui.selectedJob = action.payload.job || null;
     },
+    openConfirmModal: (state, action) => {
+      state.ui.activeModal = "confirmAction";
+      state.ui.selectedJob = action.payload.job || null;
+      state.ui.modalConfig = {
+        title: action.payload.title,
+        description: action.payload.description,
+        confirmText: action.payload.confirmText,
+        actionType: action.payload.actionType,
+        variant: action.payload.variant || "primary",
+      };
+    },
     clearModal: (state) => {
       state.ui.activeModal = null;
       state.ui.selectedJob = null;
+      state.ui.modalConfig = initialState.ui.modalConfig;
     },
-    clearBoardState: () => {
-      return initialState;
-    },
+    clearBoardState: () => initialState,
   },
   extraReducers: (builder) => {
     builder
-      // Fetch Boards Logic
+      // 1. Fetch Boards
       .addCase(fetchMyBoards.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchMyBoards.fulfilled, (state, action) => {
         state.loading = false;
-        state.boards = action.payload.data;
-
-        // Auto-select the first board if none is active (Great for newly registered users)
-        if (!state.activeBoard && action.payload.data.length > 0) {
-          state.activeBoard = action.payload.data[0];
+        const boardsData = action.payload?.data || action.payload || [];
+        state.boards = Array.isArray(boardsData) ? boardsData : [];
+        
+        // ACCURACY CHECK: Assign the first object, not the array
+        if (!state.activeBoard && state.boards.length > 0) {
+          state.activeBoard = state.boards.at(0); 
         }
       })
       .addCase(fetchMyBoards.rejected, (state, action) => {
@@ -234,67 +235,62 @@ const boardSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Fetch Jobs Logic
+      // 2. Fetch Jobs
       .addCase(fetchBoardJobs.pending, (state) => {
         state.loading = true;
         state.error = null;
+        // Notice: No action.payload reading here!
       })
       .addCase(fetchBoardJobs.fulfilled, (state, action) => {
         state.loading = false;
-        state.jobs = action.payload.data; // Includes the populated Virtual Reminders!
+        // Safely extract data ONLY when fulfilled
+        const jobsData = action.payload?.data || action.payload || [];
+        state.jobs = Array.isArray(jobsData) ? jobsData : [];
       })
       .addCase(fetchBoardJobs.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
-      //Update boards
-      .addCase(updateJobColumn.pending, (state) => {
-        state.error = null;
-        // Notice: We omit state.loading = true here to prevent UI flickering
-        // since the Kanban board uses an optimistic UI update.
-      })
+      // 3. Update Job (Column or Details)
       .addCase(updateJobColumn.fulfilled, (state, action) => {
-        // The backend returns the completely updated job object in action.payload.data
-        const updatedJob = action.payload.data;
-
-        // Find that specific job in our global Redux array and replace it
-        const jobIndex = state.jobs.findIndex(
-          (job) => job._id === updatedJob._id,
-        );
-        if (jobIndex !== -1) {
-          state.jobs[jobIndex] = updatedJob;
+        const updatedJob = action.payload?.data || action.payload;
+        if (updatedJob && updatedJob._id) {
+          const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
+          if (index !== -1) state.jobs[index] = updatedJob;
         }
       })
-      .addCase(updateJobColumn.rejected, (state, action) => {
-        state.error = action.payload;
-        // In a production app, you might want to dispatch fetchBoardJobs() here
-        // to "revert" the optimistic UI update if the backend failed.
+      .addCase(updateJobDetails.fulfilled, (state, action) => {
+        const updatedJob = action.payload?.data || action.payload;
+        if (updatedJob && updatedJob._id) {
+          const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
+          if (index !== -1) state.jobs[index] = updatedJob;
+        }
       })
 
-      //create new Jobs
+      // 4. Create & Delete
       .addCase(createNewJob.fulfilled, (state, action) => {
-        // Push the brand new job into the Redux jobs array instantly
-        state.jobs.push(action.payload.data);
+        const newJob = action.payload?.data || action.payload;
+        if (newJob) state.jobs.push(newJob);
       })
-      // Update Job Detail
-      .addCase(updateJobDetails.fulfilled, (state, action) => {
-        const updatedJob = action.payload.data;
-        const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
-        if (index !== -1) state.jobs[index] = updatedJob;
-      })
-      // delete jobs
       .addCase(deleteJob.fulfilled, (state, action) => {
-        state.jobs = state.jobs.filter((job) => job._id !== action.payload);
+        state.jobs = state.jobs.filter((j) => j._id !== action.payload);
       })
-      // update board column
+
+      // 5. Update Board Columns
       .addCase(updateBoardColumns.fulfilled, (state, action) => {
-      // Update the active board with the new column configuration
-      state.activeBoard = action.payload.data;
-      state.loading = false;
-    });
+        state.activeBoard = action.payload?.data || action.payload;
+        state.loading = false;
+      });
   },
 });
 
-export const { setActiveBoard, clearBoardState, setModal, clearModal } = boardSlice.actions;
+export const {
+  setActiveBoard,
+  setModal,
+  openConfirmModal,
+  clearModal,
+  clearBoardState,
+} = boardSlice.actions;
+
 export default boardSlice.reducer;

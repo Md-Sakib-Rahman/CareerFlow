@@ -1,20 +1,18 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { privateApi } from "../../Axios/axiosInstance";
 
-// 1. Fetch active reminders (reminders where reminderDate <= today)
 export const fetchReminders = createAsyncThunk(
   "reminder/fetchReminders",
   async (_, { rejectWithValue }) => {
     try {
       const response = await privateApi.get("/api/reminders/notifications");
-      return response.data; // { success: true, count: X, data: [...] }
+      return response.data; 
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch notifications");
     }
   }
 );
 
-// 2. Dismiss a specific reminder
 export const dismissReminderAction = createAsyncThunk(
   "reminder/dismissReminder",
   async (reminderId, { rejectWithValue }) => {
@@ -37,10 +35,15 @@ const reminderSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchReminders.pending, (state) => { state.loading = true; })
+      .addCase(fetchReminders.pending, (state) => { 
+        state.loading = true; 
+        state.error = null;
+      })
       .addCase(fetchReminders.fulfilled, (state, action) => {
         state.loading = false;
-        state.notifications = action.payload.data;
+        // 100% Accuracy: Defensively extract the array just like we did for jobs
+        const notifData = action.payload?.data || action.payload || [];
+        state.notifications = Array.isArray(notifData) ? notifData : [];
       })
       .addCase(fetchReminders.rejected, (state, action) => {
         state.loading = false;

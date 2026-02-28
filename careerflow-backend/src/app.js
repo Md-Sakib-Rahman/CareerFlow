@@ -19,6 +19,11 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
 };
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
 //  GLOBAL MIDDLEWARE
 app.use(cors(corsOptions)); // Enable Cross-Origin Resource Sharing
 app.use(express.json()); // Body parser for JSON

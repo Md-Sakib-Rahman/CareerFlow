@@ -90,113 +90,7 @@ const getBoardJobs = async (req, res) => {
  * @access  Private
  */
 
-// const updateJob = async (req, res) => {
-//   try {
-//     const jobId = req.params.id;
-//     const userId = req.user.id;
-    
-//     // Destructure specifically to separate logic fields from metadata fields
-//     const { status, columnId, dates, reminderLeadDays, ...metadata } = req.body;
 
-//     const job = await Job.findOne({ _id: jobId, userId });
-//     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
-
-//     // 1. GUARDRAIL
-//     if (columnId && status) {
-//       const board = await Board.findById(job.boardId);
-//       const targetColumn = board.columns.id(columnId);
-//       if (targetColumn.internalStatus !== status) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Mismatch: Column '${targetColumn.title}' is for ${targetColumn.internalStatus}, not ${status}.`
-//         });
-//       }
-//     }
-
-//     // 2. METADATA UPDATE (Explicit mapping for nested objects)
-//     if (metadata.company) job.company = metadata.company;
-//     if (metadata.title) job.title = metadata.title;
-//     if (metadata.location) job.location = metadata.location;
-//     if (metadata.url) job.url = metadata.url;
-//     if (metadata.notes) job.notes = metadata.notes;
-
-//     // Handle nested salary object explicitly to prevent overwriting the whole object
-//     if (metadata.salary) {
-//       job.salary.min = metadata.salary.min ?? job.salary.min;
-//       job.salary.max = metadata.salary.max ?? job.salary.max;
-//       job.salary.currency = metadata.salary.currency ?? job.salary.currency;
-//     }
-
-//     // 3. PROACTIVE CLEANUP & FUNNEL ANALYTICS
-//     const isStatusChange = status && status !== job.status;
-//     const isColumnChange = columnId && columnId !== job.columnId?.toString();
-
-//     if (isStatusChange || isColumnChange) {
-//       const targetStatus = status || job.status;
-
-//       // Delete obsolete standalone reminders
-//       if (targetStatus === "applied") {
-//         await Reminder.deleteMany({ jobId: job._id, type: "apply" });
-//       } else if (targetStatus === "interviewing") {
-//         await Reminder.deleteMany({ jobId: job._id, type: { $in: ["apply", "interview"] } });
-//       } else if (["offer", "rejected"].includes(targetStatus)) {
-//         await Reminder.deleteMany({ jobId: job._id });
-//       }
-
-//       // Funnel Logic
-//       if (targetStatus === "wishlist") {
-//         job.isApplied = job.isInterviewing = job.isOffered = job.isRejected = false;
-//         job.dates.appliedAt = job.dates.interviewingAt = job.dates.offerAt = job.dates.rejectedAt = undefined;
-//       } else if (targetStatus === "applied") {
-//         job.isApplied = true;
-//         job.isInterviewing = job.isOffered = job.isRejected = false;
-//         job.dates.appliedAt = job.dates.appliedAt || new Date();
-//       } else if (targetStatus === "interviewing") {
-//         job.isApplied = job.isInterviewing = true;
-//         job.isOffered = job.isRejected = false;
-//         job.dates.interviewingAt = job.dates.interviewingAt || new Date();
-//       } else if (targetStatus === "offer") {
-//         job.isApplied = job.isInterviewing = job.isOffered = true;
-//         job.isRejected = false;
-//         job.dates.offerAt = job.dates.offerAt || new Date();
-//       } else if (targetStatus === "rejected") {
-//         job.isRejected = true;
-//         job.dates.rejectedAt = job.dates.rejectedAt || new Date();
-//       }
-      
-//       job.status = targetStatus;
-//       if (columnId) job.columnId = columnId;
-//     }
-
-//     // 4. DATE MERGE & REMINDERS
-//     if (dates) {
-//       for (const key in dates) {
-//         job.dates[key] = dates[key];
-//       }
-
-//       if (dates.actualInterviewDate) {
-//         const targetDate = new Date(dates.actualInterviewDate);
-//         const lead = reminderLeadDays || 2;
-//         const rDate = new Date(targetDate);
-//         rDate.setDate(rDate.getDate() - lead);
-
-//         await Reminder.findOneAndUpdate(
-//           { jobId: job._id, type: "interview" },
-//           { userId, reminderDate: rDate, targetDate, leadDays: lead, isActive: true },
-//           { upsert: true, new: true }
-//         );
-//         job.dates.actualInterviewDate = targetDate; 
-//       }
-//     }
-
-//     const updatedJob = await job.save();
-//     const finalJob = await Job.findById(updatedJob._id).populate("reminders");
-
-//     res.status(200).json({ success: true, data: finalJob });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
 const updateJob = async (req, res) => {
   try {
     const jobId = req.params.id;
@@ -206,7 +100,7 @@ const updateJob = async (req, res) => {
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
 
-    // 1. GUARDRAIL (Existing)
+    // 1. GUARDRAIL
     if (columnId && status) {
       const board = await Board.findById(job.boardId);
       const targetColumn = board.columns.id(columnId);
@@ -218,7 +112,7 @@ const updateJob = async (req, res) => {
       }
     }
 
-    // 2. METADATA UPDATE (Existing)
+    // 2. METADATA UPDATE
     if (metadata.company) job.company = metadata.company;
     if (metadata.title) job.title = metadata.title;
     if (metadata.location) job.location = metadata.location;
@@ -239,28 +133,17 @@ const updateJob = async (req, res) => {
       const targetStatus = status || job.status;
 
       // ==========================================
-      // GHOST CLEANUP LOGIC
+      // GHOST CLEANUP LOGIC (Simplified & 100% Accurate)
       // ==========================================
-      if (isStatusChange) {
-        if (targetStatus === "applied") {
-          // If you achieved "Applied", delete any "Apply/Deadline" reminders
-          await Reminder.deleteMany({ jobId, type: "apply" });
-          job.dates.applyDeadlineAt = undefined; // Clear the ghost date
-        } 
-        else if (targetStatus === "interviewing") {
-          // If moved to Interviewing, ensure "Apply" reminders are definitely gone
-          await Reminder.deleteMany({ jobId, type: "apply" });
-        } 
-        else if (["offer", "rejected", "wishlist"].includes(targetStatus)) {
-          // Finishing the pipeline or resetting to wishlist wipes ALL reminders
-          await Reminder.deleteMany({ jobId });
-          // Wipe contextual dates as well
-          job.dates.actualInterviewDate = undefined;
-          job.dates.applyDeadlineAt = undefined;
-        }
-      }
+      // If the job changes stages, instantly nuke ALL existing reminders.
+      // This prevents "fired" notifications from haunting the new stage.
+      await Reminder.deleteMany({ jobId: job._id });
+      
+      // Wipe contextual dates so old deadlines don't linger
+      job.dates.actualInterviewDate = undefined;
+      job.dates.applyDeadlineAt = undefined;
 
-      // FUNNEL FLAGS & DATE LOGIC (Existing)
+      // FUNNEL FLAGS & DATE LOGIC 
       if (targetStatus === "wishlist") {
         job.isApplied = job.isInterviewing = job.isOffered = job.isRejected = false;
         job.dates.appliedAt = job.dates.interviewingAt = job.dates.offerAt = job.dates.rejectedAt = undefined;
@@ -287,8 +170,10 @@ const updateJob = async (req, res) => {
       if (columnId) job.columnId = columnId;
     }
 
-    // 4. DATE MERGE & CONTEXTUAL REMINDERS (Updated for Next Stage Only)
+    // 4. DATE MERGE & CONTEXTUAL REMINDERS
     if (dates) {
+      // Because we cleared actualInterviewDate and applyDeadlineAt above, 
+      // this will safely write the *new* ones if the payload includes them.
       for (const key in dates) {
         job.dates[key] = dates[key];
       }
@@ -314,6 +199,8 @@ const updateJob = async (req, res) => {
     }
 
     const updatedJob = await job.save();
+    
+    // Populate reminders so the frontend Redux store gets the fresh, clean array
     const finalJob = await Job.findById(updatedJob._id).populate("reminders");
 
     res.status(200).json({ success: true, data: finalJob });

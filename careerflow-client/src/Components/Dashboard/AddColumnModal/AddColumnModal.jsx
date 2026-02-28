@@ -1,28 +1,38 @@
 import React, { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
-import { updateBoardColumns } from "../../../Redux/board/boardSlice";
+import { useDispatch, useSelector } from "react-redux";
+// Import clearModal to close the modal
+import { updateBoardColumns, clearModal } from "../../../Redux/board/boardSlice"; 
 import { X, LayoutPanelLeft, ListOrdered } from "lucide-react";
 
-const AddColumnModal = ({ isOpen, onClose, activeBoard }) => {
+// REMOVED PROPS: We will get everything from Redux now
+const AddColumnModal = () => {
   const dispatch = useDispatch();
-  const [loading, setLoading] = useState(false);
   
-  // Defaulting to interviewing since that's where most custom columns go
+  // 1. Fetch activeBoard directly from Redux
+  const { activeBoard } = useSelector((state) => state.board);
+  
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ 
     title: "", 
     internalStatus: "interviewing",
     insertAfterId: "" 
   });
 
-  // Set default "Insert After" to the last column when modal opens
+  // 2. Set default "Insert After" to the last column when modal mounts
   useEffect(() => {
-    if (isOpen && activeBoard?.columns?.length > 0) {
+    if (activeBoard?.columns?.length > 0) {
       const lastColId = activeBoard.columns[activeBoard.columns.length - 1]._id;
       setFormData(prev => ({ ...prev, insertAfterId: lastColId }));
     }
-  }, [isOpen, activeBoard]);
+  }, [activeBoard]);
 
-  if (!isOpen || !activeBoard) return null;
+  // Fallback if board isn't loaded yet
+  if (!activeBoard) return null;
+
+  // 3. New Close Handler
+  const handleClose = () => {
+    dispatch(clearModal());
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,12 +48,10 @@ const AddColumnModal = ({ isOpen, onClose, activeBoard }) => {
       internalStatus: formData.internalStatus,
     };
 
-    // 1. Physically insert the object into the array
-    // If findIndex fails (-1), it will prepend, otherwise it inserts after the selection
+    // Physically insert the object into the array
     existingCols.splice(insertIndex + 1, 0, newCol);
 
-    // 2. Normalize Positions (0, 1, 2...)
-    // This ensures that even with the new insertion, indexing is continuous
+    // Normalize Positions (0, 1, 2...)
     const finalizedCols = existingCols.map((col, idx) => ({
       ...col,
       position: idx
@@ -55,14 +63,13 @@ const AddColumnModal = ({ isOpen, onClose, activeBoard }) => {
     }));
 
     if (updateBoardColumns.fulfilled.match(result)) {
-      onClose();
-      setFormData({ title: "", internalStatus: "interviewing", insertAfterId: "" });
+      handleClose(); // Close via Redux
     }
     setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-base-300/60 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z- flex items-center justify-center bg-base-300/60 backdrop-blur-sm px-4">
       <div className="bg-base-100 w-full max-w-sm rounded-3xl shadow-2xl border border-base-300 overflow-hidden">
         
         {/* Header */}
@@ -71,7 +78,8 @@ const AddColumnModal = ({ isOpen, onClose, activeBoard }) => {
             <LayoutPanelLeft size={20} className="text-primary" /> 
             Add Stage
           </h3>
-          <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle">
+          {/* Trigger Redux close handler */}
+          <button onClick={handleClose} className="btn btn-ghost btn-sm btn-circle">
             <X size={20} />
           </button>
         </div>
@@ -144,84 +152,3 @@ const AddColumnModal = ({ isOpen, onClose, activeBoard }) => {
 };
 
 export default AddColumnModal;
-// import React, { useState } from "react";
-// import { useDispatch } from "react-redux";
-// import { updateBoardColumns } from "../../../Redux/board/boardSlice";
-// import { X, LayoutPanelLeft } from "lucide-react";
-
-// const AddColumnModal = ({ isOpen, onClose, activeBoard }) => {
-//   const dispatch = useDispatch();
-//   const [loading, setLoading] = useState(false);
-//   const [formData, setFormData] = useState({ title: "", internalStatus: "applied" });
-
-//   if (!isOpen || !activeBoard) return null;
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-
-//     const newColumn = {
-//       title: formData.title,
-//       internalStatus: formData.internalStatus,
-//       position: activeBoard.columns.length // Put it at the end
-//     };
-
-//     // Combine existing columns with the new one
-//     const updatedColumns = [...activeBoard.columns, newColumn];
-
-//     const result = await dispatch(updateBoardColumns({ 
-//       boardId: activeBoard._id, 
-//       columns: updatedColumns 
-//     }));
-
-//     if (updateBoardColumns.fulfilled.match(result)) {
-//       onClose();
-//       setFormData({ title: "", internalStatus: "applied" });
-//     }
-//     setLoading(false);
-//   };
-
-//   return (
-//     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-base-300/60 backdrop-blur-sm px-4">
-//       <div className="bg-base-100 w-full max-w-sm rounded-2xl shadow-2xl border border-base-300">
-//         <div className="flex justify-between items-center p-5 border-b border-base-200">
-//           <h3 className="font-bold text-lg flex items-center gap-2"><LayoutPanelLeft size={20} /> New Stage</h3>
-//           <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle"><X size={20} /></button>
-//         </div>
-
-//         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-//           <div className="form-control">
-//             <label className="label text-xs font-bold text-base-content/60 uppercase">Column Name</label>
-//             <input 
-//               type="text" required value={formData.title} 
-//               onChange={(e) => setFormData({...formData, title: e.target.value})}
-//               placeholder="e.g., Technical Assessment" className="input input-bordered w-full bg-base-200/50" 
-//             />
-//           </div>
-
-//           <div className="form-control">
-//             <label className="label text-xs font-bold text-base-content/60 uppercase">Treat as Type</label>
-//             <select 
-//               value={formData.internalStatus}
-//               onChange={(e) => setFormData({...formData, internalStatus: e.target.value})}
-//               className="select select-bordered w-full bg-base-200/50"
-//             >
-//               <option value="wishlist">Wishlist</option>
-//               <option value="applied">Applied</option>
-//               <option value="interviewing">Interviewing</option>
-//               <option value="offer">Offer</option>
-//               <option value="rejected">Rejected</option>
-//             </select>
-//             <label className="label"><span className="label-text-alt text-base-content/40 italic">This controls automated reminders.</span></label>
-//           </div>
-
-//           <button type="submit" className="btn btn-primary w-full" disabled={loading}>
-//             {loading ? <span className="loading loading-spinner"></span> : "Add Column"}
-//           </button>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default AddColumnModal;
