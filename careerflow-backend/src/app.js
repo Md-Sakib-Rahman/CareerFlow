@@ -3,7 +3,9 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const app = express();
 const authRoutes= require('./routes/authRoutes')
-
+const boardRoutes= require('./routes/boardRoutes')
+const jobRoutes= require('./routes/jobRoutes')
+const reminderRoutes = require("./routes/reminderRoutes");
 
 const corsOptions = {
   // If in development, allow any origin (reflects the request origin).
@@ -17,6 +19,11 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
 };
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
 //  GLOBAL MIDDLEWARE
 app.use(cors(corsOptions)); // Enable Cross-Origin Resource Sharing
 app.use(express.json()); // Body parser for JSON
@@ -27,7 +34,9 @@ app.use(cookieParser());
 // example: app.use("/auth", authRoutes)
 
 app.use("/auth", authRoutes)
-
+app.use("/api/boards", boardRoutes);
+app.use("/api/jobs", jobRoutes);
+app.use("/api/reminders", reminderRoutes);
 app.get('/', (req, res) => {
     res.status(200).json({
         status: 'success',

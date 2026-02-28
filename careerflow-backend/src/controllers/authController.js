@@ -1,13 +1,39 @@
 const generateTokens = require("../utils/generateToken");
 const User = require("../models/User");
+const Board = require("../models/Board");  
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/Otp");
 const nodemailer = require("nodemailer");
 const { OAuth2Client } = require('google-auth-library');
+const axios = require('axios'); 
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ==========================================
+// HELPER: Auto-Create Default Board
+// ==========================================
+const createDefaultBoard = async (userId) => {
+  try {
+    await Board.create({
+      userId: userId,
+      name: "My Job Search",
+      columns: [
+        { title: "Wishlist", internalStatus: "wishlist", position: 0 },
+        { title: "Applied", internalStatus: "applied", position: 1 },
+        { title: "Interviewing", internalStatus: "interviewing", position: 2 },
+        { title: "Offer", internalStatus: "offer", position: 3 },
+        { title: "Rejected", internalStatus: "rejected", position: 4 }
+      ]
+    });
+    console.log(`Default board created for user: ${userId}`);
+  } catch (error) {
+    console.error("Failed to create default board:", error.message);
+  }
+};
+// ==========================================
+
 const sendRegistrationOTP = async (req, res) => {
   try {
     const { email } = req.body;
@@ -86,6 +112,10 @@ const registerUser = async (req, res) => {
     });
 
     const savedUser = await newUser.save();
+    
+    // --> INJECTED: Create the default Kanban board for standard registration <--
+    await createDefaultBoard(savedUser._id);
+    
     await Otp.deleteMany({ email });
     const { accessToken, refreshToken } = generateTokens(savedUser);
     const cookieOptions = {
@@ -116,68 +146,29 @@ const registerUser = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
-// const googleSignIn = async (req, res) => {
-//     try {
-//         // const { googleToken } = req.body;  
-//         const { idToken } = req.body;
 
-//         const ticket = await client.verifyIdToken({
-//             // idToken: googleToken,
-//             idToken: idToken,
-//             audience: process.env.GOOGLE_CLIENT_ID,
-//         });
-//         const payload = ticket.getPayload();
-//         const { email, name, picture } = payload;
-
-//         let user = await User.findOne({ email });
-
-//         if (!user) {
-            
-//             const randomPassword = crypto.randomBytes(20).toString('hex');
-//             const salt = bcrypt.genSaltSync(10);
-//             const hash = bcrypt.hashSync(randomPassword, salt);
-
-//             const newUser = new User({
-//                 name,
-//                 email,
-//                 passwordHash: hash, 
-//                 imageUrl: picture,
-//                 authProvider: 'google',  
-//                 plan: 'starter'
-//             });
-//             user = await newUser.save();
-//         } else if (user.authProvider === 'local') {
-             
-//             return res.status(400).json({ success: false, message: "This email uses a password. Please log in normally." });
-//         }
-
-//         const { accessToken, refreshToken } = generateTokens(user);
-//         const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 };
-
-//         return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
-//             success: true,
-//             message: "Google Sign-In Successful",
-//             accessToken,
-//             data: { id: user._id, name: user.name, email: user.email, plan: user.plan, imageUrl: user.imageUrl, industries: user.industries }
-//         });
-
-//     } catch (err) {
-//         return res.status(401).json({ success: false, message: "Invalid Google Token", error: err.message });
-//     }
-// };
-
-const axios = require('axios'); // Add this at the top
-
+/**
+ * @desc    Google Sign-In / Sign-Up
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
 const googleSignIn = async (req, res) => {
     try {
-        const { idToken } = req.body; // This is the access_token from useGoogleLogin
+        // 1. Receive the token from frontend (it's actually an access_token)
+        const { idToken: accessToken } = req.body; 
 
+        if (!accessToken) {
+            return res.status(400).json({ success: false, message: "No token provided" });
+        }
+
+        // 2. Exchange the Access Token for User Info manually via Google API
         const googleResponse = await axios.get(
-          `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${idToken}`
+            `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`
         );
         
         const { email, name, picture } = googleResponse.data;
 
+        // 3. Find or Create User
         let user = await User.findOne({ email });
 
         if (!user) {
@@ -192,11 +183,15 @@ const googleSignIn = async (req, res) => {
                 imageUrl: picture,
                 authProvider: 'google',  
                 plan: 'starter',
-                industries: [] // Ensure this is initialized as an empty array
+                industries: [] 
             });
+
+            await createDefaultBoard(user._id);
         }
 
-        const { accessToken, refreshToken } = generateTokens(user);
+        // 4. Generate CareerFlow Tokens
+        const { accessToken: careerFlowToken, refreshToken } = generateTokens(user);
+        
         const cookieOptions = { 
             httpOnly: true, 
             secure: process.env.NODE_ENV === "production", 
@@ -207,7 +202,7 @@ const googleSignIn = async (req, res) => {
         return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
             success: true,
             message: "Google Sign-In Successful",
-            accessToken,
+            accessToken: careerFlowToken,
             data: { 
                 id: user._id, 
                 name: user.name, 
@@ -221,10 +216,12 @@ const googleSignIn = async (req, res) => {
 
     } catch (err) {
         console.error("Google Auth Error:", err.response?.data || err.message);
-        return res.status(401).json({ success: false, message: "Google Auth failed" });
+        return res.status(401).json({ 
+            success: false, 
+            message: "Google Authentication failed. Please try again." 
+        });
     }
 };
-
 const setGoogleUserPassword = async (req, res) => {
     try {
         const { newPassword } = req.body;
@@ -257,6 +254,7 @@ const setGoogleUserPassword = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server Error", error: err.message });
     }
 };
+
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -269,7 +267,6 @@ const loginUser = async (req, res) => {
         .json({ success: false, message: "Invalid Credentials" });
     }
       
-
     if (user.lockUntil && user.lockUntil > Date.now()) {
       return res.status(403).json({
         success: false,
@@ -329,6 +326,7 @@ const loginUser = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
+
 const refreshTokenController = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
@@ -376,6 +374,7 @@ const refreshTokenController = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
+
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -402,8 +401,6 @@ const getMe = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
-
-// UPDATE user profile
 
 const updateMe = async (req, res) => {
   try {
@@ -436,7 +433,7 @@ const updateMe = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
-// Forgot Password Controller
+
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -480,14 +477,12 @@ const forgotPassword = async (req, res) => {
     };
     await transporter.sendMail(mailOptions);
     if (process.env.NODE_ENV === "development") {
-        // Dev Mode: Sending the URL in the JSON so front end teams can use it for developement 
         return res.status(200).json({
             success: true,
             message: "Email sent. (DEV MODE: URL included below)",
             resetUrl: resetUrl 
         });
     } else {
-        // Production Mode: Hiding the URL for total security
         return res.status(200).json({
             success: true,
             message: "If an account with that email exists, a reset link has been sent."
@@ -499,6 +494,7 @@ const forgotPassword = async (req, res) => {
       .json({ success: false, message: "Server Error", error: err.message });
   }
 };
+
 const resetPassword = async (req, res) => {
   try {
     const hashedToken = crypto

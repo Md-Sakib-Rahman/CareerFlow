@@ -16,7 +16,7 @@ import {
 import { motion } from "framer-motion"; 
 import { logout, fetchMe } from "../../Redux/auth/authSlice";
 import ThemeController from "../../Components/Shared/ThemeController/ThemeController";
-
+import NotificationBell from "./NotificationBell";
 const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -39,6 +39,7 @@ const DashboardLayout = () => {
   const navLinks = [
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={22} /> },
     { name: "Applications", path: "/applications", icon: <Briefcase size={22} /> },
+    { name: "Boards", path: "/boards", icon: <User size={22} /> },
     { name: "Profile", path: "/profile", icon: <User size={22} /> },
     { name: "Settings", path: "/settings", icon: <Settings size={22} /> },
   ];
@@ -171,12 +172,7 @@ const DashboardLayout = () => {
           <div className="flex items-center gap-3 md:gap-5 ml-auto">
             <ThemeController />
             
-            <button className="btn btn-ghost btn-circle btn-sm md:btn-md hover:bg-base-200 transition-colors">
-              <div className="indicator">
-                <Bell size={20} className="text-base-content/70" />
-                <span className="badge badge-xs badge-primary indicator-item ring-2 ring-base-100 animate-pulse"></span>
-              </div>
-            </button>
+            <NotificationBell />
 
             <div className="w-px h-8 bg-base-300 mx-1 hidden sm:block"></div>
 

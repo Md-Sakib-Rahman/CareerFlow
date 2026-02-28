@@ -10,6 +10,9 @@ import Register from "../Pages/Auth/Register";
 import ProfilePage from "../Pages/ProfilePage/ProfilePage";
 import PrivateRoute from "./PrivateRoute";
 import DashboardLayout from "../Layouts/DashboardLayout/DashboardLayout";
+import DashboardPage from "../Pages/DashboardPage/DashboardPage";
+import ApplicationsPage from "../Pages/Applications/ApplicationsPage";
+import BoardsPage from "../Pages/Boards/BoardsPage";
 export const router = createBrowserRouter([
   {
     path: "/", // Landing page layout !
@@ -53,8 +56,18 @@ export const router = createBrowserRouter([
         path: "/profile", 
         element: <ProfilePage/> 
       },
-      // Future routes go here automatically protected!
-      // { path: "/dashboard", element: <KanbanBoard /> }, 
+      { 
+        path: "/dashboard", 
+        element: <DashboardPage /> 
+      },
+      { 
+        path: "/applications", 
+        element: <ApplicationsPage /> 
+      },
+      { 
+        path: "/boards", 
+        element: <BoardsPage /> 
+      },
     ]
   },
 ]);
