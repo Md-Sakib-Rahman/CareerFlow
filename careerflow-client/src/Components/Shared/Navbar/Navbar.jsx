@@ -187,7 +187,7 @@ export default function Navbar() {
                      <div className="flex items-center gap-3 p-3 bg-base-200 rounded-2xl mb-4">
                         <div className="avatar">
                            <div className="w-10 rounded-full">
-                              <img src={user?.imageUrl || "https://via.placeholder.com/150"} alt="User" />
+                              <img src={user?.imageUrl || "https://via.placeholder.com/150"} alt="User" referrerPolicy="no-referrer"/>
                            </div>
                         </div>
                         <div>

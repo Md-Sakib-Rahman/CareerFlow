@@ -191,10 +191,46 @@ const deleteBoard = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Set a board as the user's primary board
+ * @route   PATCH /api/boards/:id/primary
+ * @access  Private
+ */
+const setPrimaryBoard = async (req, res) => {
+  try {
+    const boardId = req.params.id;
+    const userId = req.user.id;
+
+    // 1. Check if the requested board actually exists and belongs to the user
+    const board = await Board.findOne({ _id: boardId, userId });
+    if (!board) {
+      return res.status(404).json({ success: false, message: "Board not found" });
+    }
+
+    // 2. BULK UPDATE: Strip 'isPrimary' from EVERY board owned by this user
+    await Board.updateMany(
+      { userId: userId },
+      { $set: { isPrimary: false } }
+    );
+
+    // 3. SET PRIMARY: Make the targeted board the only primary one
+    board.isPrimary = true;
+    const updatedBoard = await board.save();
+
+    res.status(200).json({ success: true, data: updatedBoard });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
 module.exports = {
   createBoard,
   getMyBoards,
   updateBoardColumns,
-  deleteBoard
+  deleteBoard,
+  setPrimaryBoard
 
 };

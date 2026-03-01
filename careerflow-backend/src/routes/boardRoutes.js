@@ -5,6 +5,7 @@ const {
   getMyBoards,
   updateBoardColumns,
   deleteBoard,
+  setPrimaryBoard
 } = require("../controllers/boardController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -23,5 +24,9 @@ router.route("/:id")
 // Column management
 router.route("/:id/columns")
   .patch(updateBoardColumns); // PATCH /api/boards/:id/columns - Validate & update columns  
+
+
+router.patch("/:id/primary", protect, setPrimaryBoard);
+
 
 module.exports = router;

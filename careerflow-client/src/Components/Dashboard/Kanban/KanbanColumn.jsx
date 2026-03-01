@@ -31,24 +31,7 @@ const KanbanColumn = ({ column, jobs }) => {
   const columnJobs = jobs.filter((job) => job.columnId === column._id);
   const jobIds = columnJobs.map((job) => job._id);
 
-  // 2. ACTION: Update Column Title
-  // const handleTitleSubmit = () => {
-  //   if (!newTitle.trim() || newTitle === column.title) {
-  //     setIsEditing(false);
-  //     setNewTitle(column.title);
-  //     return;
-  //   }
-
-  //   const updatedCols = activeBoard.columns.map((c) =>
-  //     c._id === column._id ? { ...c, title: newTitle } : c
-  //   );
-
-  //   dispatch(updateBoardColumns({ 
-  //     boardId: activeBoard._id, 
-  //     columns: updatedCols 
-  //   }));
-  //   setIsEditing(false);
-  // };
+ 
 const handleTitleSubmit = () => {
     if (!newTitle.trim() || newTitle === column.title) {
       setIsEditing(false);

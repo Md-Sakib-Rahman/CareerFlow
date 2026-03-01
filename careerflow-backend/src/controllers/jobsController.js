@@ -237,4 +237,27 @@ const deleteJob = async (req, res) => {
   }
 };
 
-module.exports = { createJob, getBoardJobs, updateJob, deleteJob };
+/**
+ * @desc    Get ALL jobs for the authenticated user across all boards
+ * @route   GET /api/jobs
+ * @access  Private
+ */
+const getAllUserJobs = async (req, res) => {
+  try {
+    // Notice we only filter by userId, ignoring boardId
+    const jobs = await Job.find({ userId: req.user.id })
+                          .populate("reminders"); 
+
+    res.status(200).json({ success: true, count: jobs.length, data: jobs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Don't forget to export it!
+module.exports = {
+  // ... your existing exports
+  getAllUserJobs
+};
+
+module.exports = { createJob, getBoardJobs, updateJob, deleteJob, getAllUserJobs };
