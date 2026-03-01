@@ -12,7 +12,7 @@ const corsOptions = {
   // If in production, strictly allow only your deployed frontend URL.
   origin: process.env.NODE_ENV === 'development' 
     ? true 
-    : ["http://localhost:5173", "http://127.0.0.1:5173","career-flow-six.vercel.app"], 
+    : ["http://localhost:5173", "http://127.0.0.1:5173","https://career-flow-six.vercel.app"], 
   
   // CRITICAL: Required to allow cookies (like your refreshToken) to be sent across origins
   credentials: true, 
