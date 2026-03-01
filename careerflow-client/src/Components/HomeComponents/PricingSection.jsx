@@ -3,7 +3,7 @@ import { Check, Sparkles, Crown, Zap } from "lucide-react";
 export default function PricingSection() {
   return (
     // Section background: Light (Soft Gray) / Dark (Professional Zinc)
-    <section className="bg-base-300 py-24 transition-colors duration-300">
+    <section className="bg-base-200/30 py-24 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-6">
 
         {/* Header */}
