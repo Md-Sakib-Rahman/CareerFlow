@@ -11,7 +11,8 @@ import {
   X, 
   Bell,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ChartNoAxesCombined
 } from "lucide-react";
 import { motion } from "framer-motion"; 
 import { logout, fetchMe } from "../../Redux/auth/authSlice";
@@ -40,6 +41,7 @@ const DashboardLayout = () => {
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={22} /> },
     { name: "Applications", path: "/applications", icon: <Briefcase size={22} /> },
     { name: "Boards", path: "/boards", icon: <User size={22} /> },
+    { name: "Analytics", path: "/analytics", icon: <ChartNoAxesCombined size={22} /> },
     { name: "Profile", path: "/profile", icon: <User size={22} /> },
     { name: "Settings", path: "/settings", icon: <Settings size={22} /> },
   ];
