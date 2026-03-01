@@ -179,6 +179,29 @@ export const deleteBoardAction = createAsyncThunk(
     }
   }
 );
+export const setPrimaryBoardAction = createAsyncThunk(
+  "board/setPrimaryBoard",
+  async (boardId, { rejectWithValue }) => {
+    try {
+      // Calls your backend to update the primary status
+      const response = await privateApi.patch(`/api/boards/${boardId}/primary`);
+      return response.data; 
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to set primary board");
+    }
+  }
+);
+export const fetchAllUserJobs = createAsyncThunk(
+  "board/fetchAllUserJobs",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await privateApi.get(`/api/jobs`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch all jobs");
+    }
+  }
+);
 // ==========================================
 // INITIAL STATE
 // ==========================================
@@ -187,6 +210,7 @@ const initialState = {
   boards: [],
   activeBoard: null,
   jobs: [],
+  allJobs: [],
   loading: false,
   error: null,
   ui: {
@@ -273,32 +297,74 @@ const boardSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
+      .addCase(fetchAllUserJobs.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchAllUserJobs.fulfilled, (state, action) => {
+        state.loading = false;
+        const jobsData = action.payload?.data || action.payload || [];
+        state.allJobs = Array.isArray(jobsData) ? jobsData : [];
+      })
+      .addCase(fetchAllUserJobs.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // 3. Update Job (Column or Details)
+      // .addCase(updateJobColumn.fulfilled, (state, action) => {
+      //   const updatedJob = action.payload?.data || action.payload;
+      //   if (updatedJob && updatedJob._id) {
+      //     const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
+      //     if (index !== -1) state.jobs[index] = updatedJob;
+      //   }
+      // })
       .addCase(updateJobColumn.fulfilled, (state, action) => {
         const updatedJob = action.payload?.data || action.payload;
         if (updatedJob && updatedJob._id) {
+          // Update Kanban array
           const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
           if (index !== -1) state.jobs[index] = updatedJob;
+          // Update Universal array
+          const indexAll = state.allJobs.findIndex((j) => j._id === updatedJob._id);
+          if (indexAll !== -1) state.allJobs[indexAll] = updatedJob;
         }
       })
+      // .addCase(updateJobDetails.fulfilled, (state, action) => {
+      //   const updatedJob = action.payload?.data || action.payload;
+      //   if (updatedJob && updatedJob._id) {
+      //     const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
+      //     if (index !== -1) state.jobs[index] = updatedJob;
+      //   }
+      // })
       .addCase(updateJobDetails.fulfilled, (state, action) => {
         const updatedJob = action.payload?.data || action.payload;
         if (updatedJob && updatedJob._id) {
+          // Update Kanban array
           const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
           if (index !== -1) state.jobs[index] = updatedJob;
+          // Update Universal array
+          const indexAll = state.allJobs.findIndex((j) => j._id === updatedJob._id);
+          if (indexAll !== -1) state.allJobs[indexAll] = updatedJob;
         }
       })
-
       // 4. Create & Delete
+      // .addCase(createNewJob.fulfilled, (state, action) => {
+      //   const newJob = action.payload?.data || action.payload;
+      //   if (newJob) state.jobs.push(newJob);
+      // })
       .addCase(createNewJob.fulfilled, (state, action) => {
         const newJob = action.payload?.data || action.payload;
-        if (newJob) state.jobs.push(newJob);
+        if (newJob) {
+          state.jobs.push(newJob);
+          state.allJobs.push(newJob); // Sync universal
+        }
       })
+      // .addCase(deleteJob.fulfilled, (state, action) => {
+      //   state.jobs = state.jobs.filter((j) => j._id !== action.payload);
+      // })
       .addCase(deleteJob.fulfilled, (state, action) => {
         state.jobs = state.jobs.filter((j) => j._id !== action.payload);
+        state.allJobs = state.allJobs.filter((j) => j._id !== action.payload); // Sync universal
       })
-
       // 5. Update Board Columns
       .addCase(updateBoardColumns.fulfilled, (state, action) => {
         state.activeBoard = action.payload?.data || action.payload;
@@ -315,6 +381,20 @@ const boardSlice = createSlice({
         // If they delete the board they are currently looking at, clear it
         if (state.activeBoard?._id === action.payload) {
           state.activeBoard = state.boards.length > 0 ? state.boards : null;
+        }
+      })
+      .addCase(setPrimaryBoardAction.fulfilled, (state, action) => {
+        const updatedBoard = action.payload?.data || action.payload;
+        if (updatedBoard && updatedBoard._id) {
+          // Instantly set the clicked board to primary, and strip primary from all others
+          state.boards = state.boards.map((b) => ({
+            ...b,
+            isPrimary: b._id === updatedBoard._id,
+          }));
+          
+          if (state.activeBoard?._id === updatedBoard._id) {
+            state.activeBoard.isPrimary = true;
+          }
         }
       })
   },
