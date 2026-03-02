@@ -4,7 +4,9 @@ const {
   createJob, 
   getBoardJobs, 
   updateJob, 
-  deleteJob 
+  deleteJob,
+  getAllUserJobs,
+
 } = require("../controllers/jobsController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -12,8 +14,8 @@ const { protect } = require("../middleware/authMiddleware");
 router.use(protect);
 
 // Main job creation
-router.route("/")
-  .post(createJob); // POST /api/jobs - Create a new job (Forces Wishlist + Apply Reminder)
+// router.route("/")
+//   .post(createJob); // POST /api/jobs - Create a new job (Forces Wishlist + Apply Reminder)
 
 // Fetching jobs for the Kanban board
 router.route("/board/:boardId")
@@ -23,5 +25,9 @@ router.route("/board/:boardId")
 router.route("/:id")
   .patch(updateJob)   // PATCH /api/jobs/:id - Edit details, move columns, upsert reminders
   .delete(deleteJob); // DELETE /api/jobs/:id - Delete job & cascade delete standalone reminders
+
+
+router.route("/").get(protect, getAllUserJobs).post(protect, createJob);
+
 
 module.exports = router;

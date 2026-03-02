@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // Actions
-import { fetchMyBoards, fetchBoardJobs, clearModal } from "../../Redux/board/boardSlice";
+import { fetchMyBoards, fetchBoardJobs, clearModal, setActiveBoard } from "../../Redux/board/boardSlice";
 
 // Components
 import StatCards from "../../Components/Dashboard/StatCards/StatCards";
@@ -25,19 +25,43 @@ const DashboardPage = () => {
 
   // Local state only for the "Add New Job" trigger
   const [isAddJobOpen, setIsAddJobOpen] = useState(false);
-
+  const [isInitializing, setIsInitializing] = useState(true);
   // 2. DATA INITIALIZATION
-  useEffect(() => {
-    dispatch(fetchMyBoards());
-  }, [dispatch]);
+  // useEffect(() => {
+  //   dispatch(fetchMyBoards());
+  // }, [dispatch]);
 
+  // useEffect(() => {
+  //   if (activeBoard?._id) {
+  //     dispatch(fetchBoardJobs(activeBoard._id));
+  //   }
+  // }, [activeBoard, dispatch]);
   useEffect(() => {
-    if (activeBoard?._id) {
+    setIsInitializing(true)
+    // 1. Always fetch fresh boards when Dashboard mounts
+    dispatch(fetchMyBoards()).unwrap().then((response) => {
+      const allBoards = response?.data || response || [];
+      
+      // 2. Find the primary board (or fallback to the first one)
+      const primaryBoard = allBoards.find((b) => b.isPrimary === true) || allBoards;
+      
+      // 3. Force Redux to forget the last viewed board and switch to the primary one
+      if (primaryBoard) {
+        dispatch(setActiveBoard(primaryBoard));
+      }
+      setIsInitializing(false)
+    }).catch(()=>{
+    setIsInitializing(false)
+    });
+  }, [dispatch]);
+  useEffect(() => {
+    if (activeBoard && activeBoard._id) {
       dispatch(fetchBoardJobs(activeBoard._id));
     }
   }, [activeBoard, dispatch]);
 
-  if (loading && !activeBoard) return <LoadingSpinner />;
+  // if (loading && !activeBoard) return <LoadingSpinner />;
+  if (isInitializing || (loading && !activeBoard)) return <LoadingSpinner />;
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-full flex flex-col">

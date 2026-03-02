@@ -1,97 +1,112 @@
 const Job = require("../models/Job");
-const Board = require("../models/Board"); 
+const Board = require("../models/Board");
 const mongoose = require("mongoose");
 
-// @desc    Get Analytics Data (Filtered by Board or Global)
-// @route   GET /api/analytics
-// @access  Private
 const getAnalytics = async (req, res) => {
   try {
-    const userId = req.user.id; // login user id from auth middleware
-    const { boardId } = req.query; // frontend data for filtering
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+    const { boardId } = req.query;
 
-    // ১.user board list: for dropdown in frontend (boardId filter এর জন্য)
-    const boardsList = await Board.find({ userId }).select("name _id");
+    // 1. Concurrent Fetch: Get Board List while preparing Aggregation
+    const boardsListTask = Board.find({ userId }).select("name _id").lean();
 
-    // ২. filtering logic
-    let filter = { userId: new mongoose.Types.ObjectId(userId) };
-
+    // 2. Base Filter
+    const matchStage = { userId };
     if (boardId && boardId !== "all") {
-      filter.boardId = new mongoose.Types.ObjectId(boardId);
+      matchStage.boardId = new mongoose.Types.ObjectId(boardId);
     }
 
-    // ৩. Job Pipeline Status: filtered data aggregation
-    const pipelineStats = await Job.aggregate([
-      { $match: filter }, 
-      { $group: { _id: "$status", count: { $sum: 1 } } },
+    // 3. Single-Pass Aggregation (The "Pro" Way)
+    const [analyticsResult] = await Job.aggregate([
+      { $match: matchStage },
+      {
+        $facet: {
+          // Part A: Status Pipeline
+          pipelineStats: [
+            { $group: { _id: { $toLower: "$status" }, count: { $sum: 1 } } }
+          ],
+          // Part B: Monthly Activity (Optimized)
+          monthlyActivity: [
+            {
+              $match: {
+                "dates.appliedAt": { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+              }
+            },
+            {
+              $group: {
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$dates.appliedAt" } },
+                count: { $sum: 1 }
+              }
+            },
+            { $sort: { _id: 1 } }
+          ],
+          // Part C: Response Time Logic (Avg days from Applied to Interview)
+          avgResponseTime: [
+            { 
+              $match: { 
+                "dates.appliedAt": { $exists: true }, 
+                "dates.interviewAt": { $exists: true } 
+              } 
+            },
+            {
+              $project: {
+                daysToResponse: {
+                  $divide: [
+                    { $subtract: ["$dates.interviewAt", "$dates.appliedAt"] },
+                    1000 * 60 * 60 * 24
+                  ]
+                }
+              }
+            },
+            { $group: { _id: null, avgDays: { $avg: "$daysToResponse" } } }
+          ]
+        }
+      }
     ]);
 
-    // console.log("Pipeline Stats from DB:", JSON.stringify(pipelineStats, null, 2));
+    const boardsList = await boardsListTask;
 
-    const statsMap = {
-      wishlist: 0,
-      applied: 0,
-      interviewing: 0,
-      offer: 0,     
-      rejected: 0,
-    };
-
-    pipelineStats.forEach((stat) => {
-      const key = stat._id ? stat._id.toLowerCase() : "";
-      if (statsMap.hasOwnProperty(key)) {
-        statsMap[key] = stat.count;
-      }
+    // 4. Data Normalization (Cleaning up the Map)
+    const stats = { wishlist: 0, applied: 0, interviewing: 0, offered: 0, rejected: 0 };
+    analyticsResult.pipelineStats.forEach(item => {
+      const key = item._id === 'offer' ? 'offered' : item._id;
+      if (stats.hasOwnProperty(key)) stats[key] = item.count;
     });
 
-    // ৪. Success Rate calculation: (interviewing + offer / total apps) * 100
-    const totalApps = statsMap.applied + statsMap.interviewing + statsMap.offer + statsMap.rejected;
-    const successCount = statsMap.interviewing + statsMap.offer; 
-    const successRate = totalApps > 0 
-      ? ((successCount / totalApps) * 100).toFixed(2) 
-      : 0;
-
-    // ৫. Monthly Activity: last 30 days data aggregation
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const monthlyActivity = await Job.aggregate([
-      {
-        $match: {
-          ...filter,
-          "dates.appliedAt": { $exists: true, $ne: null, $gte: thirtyDaysAgo }
-        },
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$dates.appliedAt" } },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]);
+    // 5. Advanced Metrics (The "Insight" Layer)
+    const totalApps = stats.applied + stats.interviewing + stats.offered + stats.rejected;
+    const interviewRate = totalApps > 0 ? ((stats.interviewing / totalApps) * 100).toFixed(1) : 0;
+    const offerRate = stats.interviewing > 0 ? ((stats.offered / stats.interviewing) * 100).toFixed(1) : 0;
+    
+    // Pro Detail: Ghosting Detection (Applied > 14 days ago with no status change)
+    const ghostedCount = await Job.countDocuments({
+      ...matchStage,
+      status: 'applied',
+      "dates.appliedAt": { $lt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }
+    });
 
     res.status(200).json({
       success: true,
-      selectedBoard: boardId || "all",
       data: {
-        boards: boardsList, // frontend dropdown board list
-        pipelineStatus: {
-          ...statsMap,
-          offered: statsMap.offer
+        boards: boardsList,
+        pipelineStatus: stats,
+        metrics: {
+          successRate: totalApps > 0 ? ((stats.offered / totalApps) * 100).toFixed(1) : 0,
+          interviewRate: `${interviewRate}%`, // How good is the resume?
+          offerRate: `${offerRate}%`,         // How good is the interviewing?
+          avgResponseDays: Math.round(analyticsResult.avgResponseTime[0]?.avgDays || 0),
+          ghostedApplications: ghostedCount
         },
-        successRate: `${successRate}%`,
-        totalJobFunnel: {
-          totalSaved: statsMap.wishlist + totalApps,
-          totalApplied: totalApps,
-          totalInterviews: statsMap.interviewing,
-        },
-        monthlyActivity,
-      },
+        funnel: [
+          { step: "Applied", count: totalApps },
+          { step: "Interviewed", count: stats.interviewing },
+          { step: "Offered", count: stats.offered }
+        ],
+        monthlyActivity: analyticsResult.monthlyActivity
+      }
     });
   } catch (error) {
-    console.error("Analytics Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
-
 module.exports = { getAnalytics };
