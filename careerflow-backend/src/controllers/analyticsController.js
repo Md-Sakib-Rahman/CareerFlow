@@ -1,5 +1,5 @@
 const Job = require("../models/Job");
-const Board = require("../models/Board"); // বোর্ড লিস্টের জন্য প্রয়োজন
+const Board = require("../models/Board"); 
 const mongoose = require("mongoose");
 
 // @desc    Get Analytics Data (Filtered by Board or Global)
@@ -10,12 +10,10 @@ const getAnalytics = async (req, res) => {
     const userId = req.user.id; // login user id from auth middleware
     const { boardId } = req.query; // frontend data for filtering
 
-    // ১. ইউজারের সব বোর্ডের লিস্ট আনা (ড্রপডাউনের জন্য)
+    // ১.user board list: for dropdown in frontend (boardId filter এর জন্য)
     const boardsList = await Board.find({ userId }).select("name _id");
 
     // ২. filtering logic
-    // আপনার মডেল অনুযায়ী userId এবং boardId ব্যবহার করা হয়েছে।
-    // Aggregate-এ ObjectId ফরম্যাট ছাড়া ডাটা ম্যাচ করে না।
     let filter = { userId: new mongoose.Types.ObjectId(userId) };
 
     if (boardId && boardId !== "all") {
@@ -28,19 +26,17 @@ const getAnalytics = async (req, res) => {
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
-    // কনসোলে চেক করার জন্য
-    console.log("Pipeline Stats from DB:", JSON.stringify(pipelineStats, null, 2));
+    // console.log("Pipeline Stats from DB:", JSON.stringify(pipelineStats, null, 2));
 
     const statsMap = {
       wishlist: 0,
       applied: 0,
       interviewing: 0,
-      offer: 0,      // আপনার মডেল অনুযায়ী 'offer' (একবচন)
+      offer: 0,     
       rejected: 0,
     };
 
     pipelineStats.forEach((stat) => {
-      // স্ট্যাটাস কী-গুলো ছোট হাতের করে চেক করা নিরাপদ
       const key = stat._id ? stat._id.toLowerCase() : "";
       if (statsMap.hasOwnProperty(key)) {
         statsMap[key] = stat.count;
@@ -54,7 +50,7 @@ const getAnalytics = async (req, res) => {
       ? ((successCount / totalApps) * 100).toFixed(2) 
       : 0;
 
-    // ৫. Monthly Activity: last 30 days data (মডেলের dates.appliedAt ব্যবহার করা হয়েছে)
+    // ৫. Monthly Activity: last 30 days data aggregation
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -78,10 +74,10 @@ const getAnalytics = async (req, res) => {
       success: true,
       selectedBoard: boardId || "all",
       data: {
-        boards: boardsList, // ফ্রন্টএন্ড ড্রপডাউনের জন্য
+        boards: boardsList, // frontend dropdown board list
         pipelineStatus: {
           ...statsMap,
-          offered: statsMap.offer // ফ্রন্টএন্ড compatibility-র জন্য offered নাম দেওয়া হলো
+          offered: statsMap.offer
         },
         successRate: `${successRate}%`,
         totalJobFunnel: {
