@@ -31,6 +31,7 @@ const KanbanBoard = () => {
 
   // Sync local jobs with Redux jobs when they change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalJobs(jobs || []);
   }, [jobs]);
 
