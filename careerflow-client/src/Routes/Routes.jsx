@@ -13,6 +13,8 @@ import DashboardLayout from "../Layouts/DashboardLayout/DashboardLayout";
 import DashboardPage from "../Pages/DashboardPage/DashboardPage";
 import ApplicationsPage from "../Pages/Applications/ApplicationsPage";
 import BoardsPage from "../Pages/Boards/BoardsPage";
+import ResetPassword from "../Pages/Auth/ResetPassword";
+import ForgotPassword from "../Pages/Auth/ForgotPassword";
 export const router = createBrowserRouter([
   {
     path: "/", // Landing page layout !
@@ -32,17 +34,24 @@ export const router = createBrowserRouter([
       },
       {
         path: "/whyus",
-        element: <WhyAsk/>
+        element: <WhyAsk />
       },
       {
         path: "/login",
-        element: <Login/>
+        element: <Login />
       },
       {
         path: "/register",
-        element: <Register/>
+        element: <Register />
       },
-      
+      {
+        path: "/reset-password",
+        element: <ResetPassword />
+      },
+      {
+        path: "/forgot-password",
+        element: <ForgotPassword />
+      },
     ]
   },
   {
@@ -52,21 +61,21 @@ export const router = createBrowserRouter([
       </PrivateRoute>
     ),
     children: [
-      { 
-        path: "/profile", 
-        element: <ProfilePage/> 
+      {
+        path: "/profile",
+        element: <ProfilePage />
       },
-      { 
-        path: "/dashboard", 
-        element: <DashboardPage /> 
+      {
+        path: "/dashboard",
+        element: <DashboardPage />
       },
-      { 
-        path: "/applications", 
-        element: <ApplicationsPage /> 
+      {
+        path: "/applications",
+        element: <ApplicationsPage />
       },
-      { 
-        path: "/boards", 
-        element: <BoardsPage /> 
+      {
+        path: "/boards",
+        element: <BoardsPage />
       },
     ]
   },
