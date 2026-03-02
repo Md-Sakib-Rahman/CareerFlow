@@ -5,7 +5,7 @@ import FAQPage from "../Pages/FAQPage/FAQPage";
 import OurStoryPage from "../Pages/OurStory/OurStoryPage";
 import LoadingSpinner from "../Components/Shared/LoadingSpinner/LoadingSpinner";
 import WhyAsk from "../Pages/WhyAskPage/WhyAsk";
-import Login from "../Pages/Auth/Login"
+import Login from "../Pages/Auth/Login";
 import Register from "../Pages/Auth/Register";
 import ProfilePage from "../Pages/ProfilePage/ProfilePage";
 import PrivateRoute from "./PrivateRoute";
@@ -15,6 +15,10 @@ import ApplicationsPage from "../Pages/Applications/ApplicationsPage";
 import BoardsPage from "../Pages/Boards/BoardsPage";
 import ResetPassword from "../Pages/Auth/ResetPassword";
 import ForgotPassword from "../Pages/Auth/ForgotPassword";
+
+// 1. ADDED YOUR ANALYTICS IMPORT BACK
+import Analytics from "../Components/Dashboard/Analytics/Analytics";
+
 export const router = createBrowserRouter([
   {
     path: "/", // Landing page layout !
@@ -77,6 +81,11 @@ export const router = createBrowserRouter([
         path: "/boards",
         element: <BoardsPage />
       },
+      // 2. ADDED YOUR ANALYTICS ROUTE BACK INTO THE DASHBOARD
+      {
+        path: "/analytics",
+        element: <Analytics />
+      }
     ]
   },
 ]);
