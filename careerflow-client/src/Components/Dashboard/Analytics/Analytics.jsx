@@ -7,51 +7,36 @@ import {
 import { Target, CheckCircle, XCircle, Briefcase, BarChart3, PieChart as PieIcon } from 'lucide-react';
 
 const Analytics = () => {
-  const [globalData, setGlobalData] = useState(null);
-  const [boardWiseComparison, setBoardWiseComparison] = useState([]);
   const [boards, setBoards] = useState([]);
   const [selectedBoardData, setSelectedBoardData] = useState(null);
   const [selectedBoardId, setSelectedBoardId] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  // Recharts color palette - can be customized or extended as needed
+  // Recharts color palette
   const COLORS = ['#9333ea', '#4f46e5', '#db2777', '#16a34a', '#dc2626'];
 
   useEffect(() => {
-    fetchAllData();
+    fetchInitialData();
   }, []);
 
-  const fetchAllData = async () => {
+  // ১. first fetch for initial data (global overview + boards list):
+  const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const boardRes = await privateApi.get('/api/boards');
-      const allBoards = boardRes.data.boards || [];
-      setBoards(allBoards);
+      // we fetch analytics for 'all' boards to get the global overview and the list of boards for the dropdown
+      const res = await privateApi.get('/api/analytics?boardId=all');
+      const apiData = res.data.data; // Backend response structure: { data: { boards, pipelineStatus, ... } }
 
-      const globalRes = await privateApi.get('/api/analytics?boardId=all');
-      setGlobalData(globalRes.data.data);
-      setSelectedBoardData(globalRes.data.data);
-
-      const comparisonData = await Promise.all(allBoards.map(async (b) => {
-        try {
-          const res = await privateApi.get(`/api/analytics?boardId=${b._id}`);
-          return {
-            name: b.name,
-            interviews: res.data.data.pipelineStatus.interviewing || 0,
-            offers: res.data.data.pipelineStatus.offered || 0
-          };
-        } catch (err) {
-          return { name: b.name, interviews: 0, offers: 0 };
-        }
-      }));
-      setBoardWiseComparison(comparisonData);
+      setBoards(apiData.boards || []);
+      setSelectedBoardData(apiData);
     } catch (err) { 
-      console.error("Analytics Main Fetch Error:", err); 
+      console.error("Analytics Initial Fetch Error:", err); 
     } finally {
       setLoading(false);
     }
   };
 
+  // ২. change event handler for board selection:
   const handleBoardChange = async (e) => {
     const id = e.target.value;
     setSelectedBoardId(id);
@@ -66,13 +51,23 @@ const Analytics = () => {
     }
   };
 
-  if (loading && !globalData) {
+  if (loading && !selectedBoardData) {
     return (
       <div className="min-h-screen bg-base-100 flex items-center justify-center">
         <span className="loading loading-ring loading-lg text-primary"></span>
       </div>
     );
   }
+
+  // ৩. Comparison Chart data preparation:we can compare the selected board with the global data (if not already selected)
+  // here we prepare data for the top bar chart that compares the selected board's performance with the global average (or total)
+  const comparisonData = [
+    {
+      name: selectedBoardId === 'all' ? 'Global' : 'Selected Board',
+      interviews: selectedBoardData?.pipelineStatus?.interviewing || 0,
+      offers: selectedBoardData?.pipelineStatus?.offered || 0
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content p-4 md:p-8 transition-colors duration-300">
@@ -81,20 +76,20 @@ const Analytics = () => {
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-6">
           <BarChart3 className="text-primary" />
-          <h2 className="text-2xl font-bold tracking-tight">Board Comparison Performance</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Board Performance Overview</h2>
         </div>
         <div className="bg-base-200 p-6 rounded-box border border-base-300 shadow-xl h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={boardWiseComparison}>
+            <BarChart data={comparisonData}>
               <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
               <XAxis dataKey="name" stroke="currentColor" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="currentColor" fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip 
-                contentStyle={{ backgroundColor: 'var(--color-base-200)', border: '1px solid var(--color-base-300)', borderRadius: '12px' }} 
+                contentStyle={{ backgroundColor: '#1d232a', border: '1px solid #384153', borderRadius: '12px' }} 
               />
               <Legend verticalAlign="top" height={36}/>
-              <Bar dataKey="interviews" fill="var(--color-primary)" radius={[4, 4, 0, 0]} name="Interviews" barSize={30} />
-              <Bar dataKey="offers" fill="var(--color-secondary)" radius={[4, 4, 0, 0]} name="Offers" barSize={30} />
+              <Bar dataKey="interviews" fill="#9333ea" radius={[4, 4, 0, 0]} name="Interviews" barSize={60} />
+              <Bar dataKey="offers" fill="#4f46e5" radius={[4, 4, 0, 0]} name="Offers" barSize={60} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -123,12 +118,12 @@ const Analytics = () => {
         </select>
       </div>
 
-      {/* Stats Cards - Updated to use theme variables */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard title="Success Rate" value={selectedBoardData?.successRate || "0%"} icon={<Target className="text-primary"/>} borderClass="border-primary" />
-        <StatCard title="Total Applied" value={selectedBoardData?.totalJobFunnel.totalApplied || 0} icon={<Briefcase className="text-secondary"/>} borderClass="border-secondary" />
-        <StatCard title="Interviews" value={selectedBoardData?.totalJobFunnel.totalInterviews || 0} icon={<CheckCircle className="text-success"/>} borderClass="border-success" />
-        <StatCard title="Rejections" value={selectedBoardData?.pipelineStatus.rejected || 0} icon={<XCircle className="text-error"/>} borderClass="border-error" />
+        <StatCard title="Total Applied" value={selectedBoardData?.totalJobFunnel?.totalApplied || 0} icon={<Briefcase className="text-secondary"/>} borderClass="border-secondary" />
+        <StatCard title="Interviews" value={selectedBoardData?.totalJobFunnel?.totalInterviews || 0} icon={<CheckCircle className="text-success"/>} borderClass="border-success" />
+        <StatCard title="Rejections" value={selectedBoardData?.pipelineStatus?.rejected || 0} icon={<XCircle className="text-error"/>} borderClass="border-error" />
       </div>
 
       {/* Charts Detail Row */}
@@ -141,11 +136,11 @@ const Analytics = () => {
               <PieChart>
                 <Pie 
                   data={[
-                    { name: 'Wishlist', value: selectedBoardData?.pipelineStatus.wishlist || 0 },
-                    { name: 'Applied', value: selectedBoardData?.pipelineStatus.applied || 0 },
-                    { name: 'Interviewing', value: selectedBoardData?.pipelineStatus.interviewing || 0 },
-                    { name: 'Offered', value: selectedBoardData?.pipelineStatus.offered || 0 },
-                    { name: 'Rejected', value: selectedBoardData?.pipelineStatus.rejected || 0 },
+                    { name: 'Wishlist', value: selectedBoardData?.pipelineStatus?.wishlist || 0 },
+                    { name: 'Applied', value: selectedBoardData?.pipelineStatus?.applied || 0 },
+                    { name: 'Interviewing', value: selectedBoardData?.pipelineStatus?.interviewing || 0 },
+                    { name: 'Offered', value: selectedBoardData?.pipelineStatus?.offered || 0 },
+                    { name: 'Rejected', value: selectedBoardData?.pipelineStatus?.rejected || 0 },
                   ].filter(d => d.value > 0)} 
                   innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value"
                 >
@@ -158,7 +153,7 @@ const Analytics = () => {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Monthly Activity */}
         <div className="bg-base-200 p-6 rounded-box border border-base-300 shadow-lg">
           <h3 className="text-lg mb-6 font-semibold uppercase tracking-widest opacity-70">Application Velocity (30d)</h3>
           <div className="h-[320px]">
@@ -167,8 +162,8 @@ const Analytics = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} vertical={false} />
                 <XAxis dataKey="_id" stroke="currentColor" fontSize={10} tickLine={false} />
                 <YAxis stroke="currentColor" fontSize={10} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: 'var(--color-base-200)', border: 'none' }} />
-                <Line type="monotone" dataKey="count" stroke="var(--color-primary)" strokeWidth={4} dot={{ r: 4, fill: 'var(--color-primary)' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#1d232a', border: 'none' }} />
+                <Line type="monotone" dataKey="count" stroke="#9333ea" strokeWidth={4} dot={{ r: 4, fill: '#9333ea' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

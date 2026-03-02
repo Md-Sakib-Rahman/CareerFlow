@@ -1,4 +1,6 @@
 const Job = require("../models/Job");
+const Board = require("../models/Board"); // বোর্ড লিস্টের জন্য প্রয়োজন
+const mongoose = require("mongoose");
 
 // @desc    Get Analytics Data (Filtered by Board or Global)
 // @route   GET /api/analytics
@@ -6,57 +8,66 @@ const Job = require("../models/Job");
 const getAnalytics = async (req, res) => {
   try {
     const userId = req.user.id; // login user id from auth middleware
-    const { boardId } = req.query; // frontend data for filtering (optional, default to "all")
+    const { boardId } = req.query; // frontend data for filtering
 
-    // ১. filtering logic
-    // if boardId is provided and not "all", filter by that board. Otherwise, show data for all boards of the user.
-    // new user-friendly filter: if boardId is "all" or not provided, we ignore the board filter and show all data for the user.
-    let filter = { user: userId };
+    // ১. ইউজারের সব বোর্ডের লিস্ট আনা (ড্রপডাউনের জন্য)
+    const boardsList = await Board.find({ userId }).select("name _id");
+
+    // ২. filtering logic
+    // আপনার মডেল অনুযায়ী userId এবং boardId ব্যবহার করা হয়েছে।
+    // Aggregate-এ ObjectId ফরম্যাট ছাড়া ডাটা ম্যাচ করে না।
+    let filter = { userId: new mongoose.Types.ObjectId(userId) };
+
     if (boardId && boardId !== "all") {
-      filter.board = boardId;
+      filter.boardId = new mongoose.Types.ObjectId(boardId);
     }
 
-    // ২. Job Pipeline Status: filtered data aggregation with dynamic filter
+    // ৩. Job Pipeline Status: filtered data aggregation
     const pipelineStats = await Job.aggregate([
       { $match: filter }, 
       { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
+    // কনসোলে চেক করার জন্য
+    console.log("Pipeline Stats from DB:", JSON.stringify(pipelineStats, null, 2));
+
     const statsMap = {
       wishlist: 0,
       applied: 0,
       interviewing: 0,
-      offered: 0,
+      offer: 0,      // আপনার মডেল অনুযায়ী 'offer' (একবচন)
       rejected: 0,
     };
 
     pipelineStats.forEach((stat) => {
-      if (statsMap.hasOwnProperty(stat._id)) {
-        statsMap[stat._id] = stat.count;
+      // স্ট্যাটাস কী-গুলো ছোট হাতের করে চেক করা নিরাপদ
+      const key = stat._id ? stat._id.toLowerCase() : "";
+      if (statsMap.hasOwnProperty(key)) {
+        statsMap[key] = stat.count;
       }
     });
 
-    // ৩. Success Rate calculation: (interviewing / total applications) * 100
-    const totalApps = statsMap.applied + statsMap.interviewing + statsMap.offered + statsMap.rejected;
+    // ৪. Success Rate calculation: (interviewing + offer / total apps) * 100
+    const totalApps = statsMap.applied + statsMap.interviewing + statsMap.offer + statsMap.rejected;
+    const successCount = statsMap.interviewing + statsMap.offer; 
     const successRate = totalApps > 0 
-      ? ((statsMap.interviewing / totalApps) * 100).toFixed(2) 
+      ? ((successCount / totalApps) * 100).toFixed(2) 
       : 0;
 
-    // ৪. Monthly Activity: last 30 days data (status: applied)
+    // ৫. Monthly Activity: last 30 days data (মডেলের dates.appliedAt ব্যবহার করা হয়েছে)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const monthlyActivity = await Job.aggregate([
       {
         $match: {
-          ...filter, // dynamic filter (All boards or specific board)
-          createdAt: { $gte: thirtyDaysAgo },
-          status: "applied",
+          ...filter,
+          "dates.appliedAt": { $exists: true, $ne: null, $gte: thirtyDaysAgo }
         },
       },
       {
         $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$dates.appliedAt" } },
           count: { $sum: 1 },
         },
       },
@@ -67,7 +78,11 @@ const getAnalytics = async (req, res) => {
       success: true,
       selectedBoard: boardId || "all",
       data: {
-        pipelineStatus: statsMap,
+        boards: boardsList, // ফ্রন্টএন্ড ড্রপডাউনের জন্য
+        pipelineStatus: {
+          ...statsMap,
+          offered: statsMap.offer // ফ্রন্টএন্ড compatibility-র জন্য offered নাম দেওয়া হলো
+        },
         successRate: `${successRate}%`,
         totalJobFunnel: {
           totalSaved: statsMap.wishlist + totalApps,
@@ -78,6 +93,7 @@ const getAnalytics = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Analytics Error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
