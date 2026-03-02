@@ -9,6 +9,7 @@ const authRoutes= require('./routes/authRoutes');
 const boardRoutes= require('./routes/boardRoutes');
 const jobRoutes= require('./routes/jobRoutes');
 const reminderRoutes = require("./routes/reminderRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 
 const app = express();
 
@@ -47,7 +48,7 @@ app.use("/auth", authRoutes);
 app.use("/api/boards", boardRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/reminders", reminderRoutes);
-
+app.use("/api/analytics", analyticsRoutes);
 app.get('/', (req, res) => {
     res.status(200).json({
         status: 'success',
