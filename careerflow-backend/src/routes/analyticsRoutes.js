@@ -4,6 +4,7 @@ const router = express.Router();
 // 1. Destructure imports carefully (Ensure names match the controller exports exactly)
 const { getAnalytics } = require("../controllers/analyticsController");
 const { protect } = require("../middleware/authMiddleware");
+const { requirePro } = require("../middleware/paywallMiddleware");
 
 /**
  * @route   GET /api/analytics
@@ -15,6 +16,7 @@ const { protect } = require("../middleware/authMiddleware");
 router.get(
   "/", 
   protect, // Middleware 1: Authentication
+  requirePro,
   getAnalytics // Final Handler: Data Aggregation
 );
 
