@@ -1,19 +1,38 @@
 const Job = require("../models/Job");
 const Board = require("../models/Board");
 const Reminder = require("../models/Reminder"); // NEW: Import the standalone model
+const User = require("../models/User");
 
 /**
  * @desc    Create a new job (Defaults to Wishlist)
  * @route   POST /api/jobs
  * @access  Private
  */
+
 const createJob = async (req, res) => {
   try {
     const {
       boardId, columnId, company, title,
       salary, url, applyDeadlineAt, reminderLeadDays, notes
     } = req.body;
-    const userId = req.user.id;
+    const userId = req.user._id || req.user.id;
+
+    // ==========================================
+    // ⚠️ PAYWALL LOGIC: Enforce Job Limits
+    // ==========================================
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (user.plan === 'starter') {
+      const currentJobCount = await Job.countDocuments({ userId });
+      if (currentJobCount >= 20) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Starter plan limit reached (Max 20 Jobs). Please upgrade to Pro." 
+        });
+      }
+    }
+    // ==========================================
 
     // 1. VALIDATION
     const board = await Board.findOne({ _id: boardId, userId });
@@ -29,14 +48,15 @@ const createJob = async (req, res) => {
       });
     }
 
-    // 2. Prepare Job Data (No embedded reminders array!)
+    // ... The rest of your job creation logic stays exactly the same ...
+    
+    // 2. Prepare Job Data 
     const jobData = {
       userId, boardId, columnId, company, title,
       status: "wishlist", salary, url, notes,
       dates: { wishlistAt: new Date() }
     };
 
-    // 3. Proactive Reminder Setup
     let reminderConfig = null;
     if (applyDeadlineAt) {
       const targetDate = new Date(applyDeadlineAt);
@@ -50,7 +70,6 @@ const createJob = async (req, res) => {
 
     const newJob = await Job.create(jobData);
 
-    // 4. Create Standalone Reminder if configured
     if (reminderConfig) {
       await Reminder.create({
         userId,
@@ -67,7 +86,6 @@ const createJob = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to create job", error: error.message });
   }
 };
-
 /**
  * @desc    Get all jobs for a specific board
  * @route   GET /api/jobs/board/:boardId
