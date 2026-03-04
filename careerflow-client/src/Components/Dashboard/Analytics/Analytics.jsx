@@ -89,7 +89,7 @@ const Analytics = () => {
   }
 
   const { pipelineStatus, metrics, funnel, monthlyActivity } = selectedBoardData;
-
+  console.log("Monthly Activity Data:", monthlyActivity)
   return (
     <div className="min-h-screen bg-base-100 text-base-content p-4 md:p-8 space-y-8">
       

@@ -18,6 +18,7 @@ import ForgotPassword from "../Pages/Auth/ForgotPassword";
 
 // 1. ADDED YOUR ANALYTICS IMPORT BACK
 import Analytics from "../Components/Dashboard/Analytics/Analytics";
+import UpgradePage from "../Pages/UpgradePage/UpgradePage";
 
 export const router = createBrowserRouter([
   {
@@ -38,25 +39,25 @@ export const router = createBrowserRouter([
       },
       {
         path: "/whyus",
-        element: <WhyAsk />
+        element: <WhyAsk />,
       },
       {
         path: "/login",
-        element: <Login />
+        element: <Login />,
       },
       {
         path: "/register",
-        element: <Register />
+        element: <Register />,
       },
       {
         path: "/reset-password",
-        element: <ResetPassword />
+        element: <ResetPassword />,
       },
       {
         path: "/forgot-password",
-        element: <ForgotPassword />
+        element: <ForgotPassword />,
       },
-    ]
+    ],
   },
   {
     element: (
@@ -67,25 +68,29 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/profile",
-        element: <ProfilePage />
+        element: <ProfilePage />,
       },
       {
         path: "/dashboard",
-        element: <DashboardPage />
+        element: <DashboardPage />,
       },
       {
         path: "/applications",
-        element: <ApplicationsPage />
+        element: <ApplicationsPage />,
       },
       {
         path: "/boards",
-        element: <BoardsPage />
+        element: <BoardsPage />,
       },
       // 2. ADDED YOUR ANALYTICS ROUTE BACK INTO THE DASHBOARD
       {
         path: "/analytics",
-        element: <Analytics />
-      }
-    ]
+        element: <Analytics />,
+      },
+      {
+        path: "/upgrade",
+        element: <UpgradePage />,
+      },
+    ],
   },
 ]);

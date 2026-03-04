@@ -10,7 +10,7 @@ const boardRoutes= require('./routes/boardRoutes');
 const jobRoutes= require('./routes/jobRoutes');
 const reminderRoutes = require("./routes/reminderRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
-
+const { handleStripeWebhook } = require('./controllers/paymentController');
 const app = express();
 
 const corsOptions = {
@@ -30,6 +30,7 @@ app.use((req, res, next) => {
 
 // GLOBAL MIDDLEWARE
 app.use(cors(corsOptions)); 
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 app.use(express.json()); 
 app.use(cookieParser());
 
@@ -49,6 +50,10 @@ app.use("/api/boards", boardRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/reminders", reminderRoutes);
 app.use("/api/analytics", analyticsRoutes);
+
+const paymentRoutes = require('./routes/paymentRoutes'); // The route for createCheckoutSession
+app.use('/api/payments', paymentRoutes);
+
 app.get('/', (req, res) => {
     res.status(200).json({
         status: 'success',
