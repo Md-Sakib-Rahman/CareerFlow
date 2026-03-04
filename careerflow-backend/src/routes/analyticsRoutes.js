@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 // 1. Destructure imports carefully (Ensure names match the controller exports exactly)
-const { getAnalytics } = require("../controllers/analyticsController");
+const { getAnalytics, getAiInsights } = require("../controllers/analyticsController");
 const { protect } = require("../middleware/authMiddleware");
 const { requirePro } = require("../middleware/paywallMiddleware");
 
@@ -19,16 +19,7 @@ router.get(
   requirePro,
   getAnalytics // Final Handler: Data Aggregation
 );
+router.get("/ai-insights", protect, requirePro, getAiInsights);
 
 module.exports = router;
-// const express = require("express");
-// const router = express.Router();
-// const { getAnalytics } = require("../controllers/analyticsController");
-// const { protect } = require("../middleware/authMiddleware"); // protect middleware to ensure routes are private
-
-// // @route   GET /api/analytics
-// // @desc    Get job application analytics
-// // @access  Private
-// router.get("/", protect, getAnalytics);
-
-// module.exports = router;
+ 

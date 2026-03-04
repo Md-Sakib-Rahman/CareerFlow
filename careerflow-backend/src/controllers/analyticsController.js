@@ -1,7 +1,7 @@
 const Job = require("../models/Job");
 const Board = require("../models/Board");
 const mongoose = require("mongoose");
-
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const getAnalytics = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
@@ -109,4 +109,93 @@ const getAnalytics = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
-module.exports = { getAnalytics };
+/**
+ * @desc    Generate AI insights based on pipeline health using Gemini
+ * @route   GET /api/analytics/ai-insights
+ * @access  Private (Pro/Executive Only)
+ */
+const getAiInsights = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const { boardId } = req.query;
+
+    const matchQuery = { userId: userId };
+    if (boardId && boardId !== 'all') {
+      matchQuery.boardId = boardId;
+    }
+
+    // Gather core metrics
+    const totalJobs = await Job.countDocuments(matchQuery);
+
+    if (totalJobs === 0) {
+      return res.status(200).json({
+        success: true,
+        data: { aiInsights: "You haven't added any jobs yet! Start adding applications to your board to get personalized AI pipeline insights." }
+      });
+    }
+
+    const interviewingJobs = await Job.countDocuments({ ...matchQuery, status: 'interviewing' });
+    const offeredJobs = await Job.countDocuments({ ...matchQuery, status: 'offer' });
+    
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const ghostedJobs = await Job.countDocuments({
+      ...matchQuery,
+      status: { $in: ['applied', 'wishlist'] },
+      updatedAt: { $lt: fourteenDaysAgo }
+    });
+
+    const interviewRate = ((interviewingJobs / totalJobs) * 100).toFixed(1);
+    const successRate = ((offeredJobs / totalJobs) * 100).toFixed(1);
+
+    // ==========================================
+    // ⚠️ NEW: TRUE GEMINI INTEGRATION
+    // ==========================================
+    let aiInsights = "Keep logging your applications to generate personalized insights!";
+
+    // Only hit the AI if they have enough data to analyze
+    if (totalJobs > 5) {
+      try {
+        // Initialize Gemini
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // Use flash for the fastest response time
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+
+        // Construct the prompt with the user's exact metrics
+        const prompt = `
+          You are an expert career coach analyzing a software developer's job application pipeline. 
+          Here is their current data:
+          - Total Applications: ${totalJobs}
+          - Currently Interviewing: ${interviewingJobs}
+          - Job Offers: ${offeredJobs}
+          - Ghosted Applications (no response in 14 days): ${ghostedJobs}
+          - Interview Rate: ${interviewRate}%
+          - Success Rate (Offers): ${successRate}%
+
+          Provide a short, encouraging, and highly actionable 2-3 sentence insight on what they should focus on next to improve their pipeline. 
+          Be direct, professional, and do NOT use markdown formatting like asterisks or bold text. Just plain text. Also Must provide the metrics in stats (current data) to tell the user to keep applying, or to focus on interview prep, or to follow up on ghosted apps based on the data provided.
+        `;
+
+        const result = await model.generateContent(prompt);
+        aiInsights = result.response.text().trim();
+
+      } catch (geminiError) {
+        console.error("Gemini API Error:", geminiError);
+        // Bulletproof fallback if API fails/timeouts
+        aiInsights = `Your pipeline is active with ${totalJobs} jobs! Continue applying consistently and practicing your interview skills to improve your conversion rates.`;
+      }
+    } else {
+       aiInsights = `You have ${totalJobs} jobs in your pipeline. Add a few more applications so the AI can accurately identify bottlenecks and success trends!`;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { aiInsights }
+    });
+
+  } catch (error) {
+    console.error("AI Insights Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+module.exports = { getAnalytics, getAiInsights };

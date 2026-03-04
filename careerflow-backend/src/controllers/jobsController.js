@@ -8,66 +8,6 @@ const User = require("../models/User");
  * @route   POST /api/jobs
  * @access  Private
  */
-// const createJob = async (req, res) => {
-//   try {
-//     const {
-//       boardId, columnId, company, title,
-//       salary, url, applyDeadlineAt, reminderLeadDays, notes
-//     } = req.body;
-//     const userId = req.user.id;
-
-//     // 1. VALIDATION
-//     const board = await Board.findOne({ _id: boardId, userId });
-//     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
-
-//     const targetColumn = board.columns.id(columnId);
-//     if (!targetColumn) return res.status(400).json({ success: false, message: "Invalid Column ID" });
-
-//     if (targetColumn.internalStatus !== "wishlist") {
-//       return res.status(400).json({
-//         success: false,
-//         message: `Logic Error: New jobs must start in a 'wishlist' column, not '${targetColumn.internalStatus}'.`
-//       });
-//     }
-
-//     // 2. Prepare Job Data (No embedded reminders array!)
-//     const jobData = {
-//       userId, boardId, columnId, company, title,
-//       status: "wishlist", salary, url, notes,
-//       dates: { wishlistAt: new Date() }
-//     };
-
-//     // 3. Proactive Reminder Setup
-//     let reminderConfig = null;
-//     if (applyDeadlineAt) {
-//       const targetDate = new Date(applyDeadlineAt);
-//       const lead = reminderLeadDays || 2;
-//       const rDate = new Date(targetDate);
-//       rDate.setDate(rDate.getDate() - lead);
-
-//       jobData.dates.applyDeadlineAt = targetDate;
-//       reminderConfig = { targetDate, rDate, lead };
-//     }
-
-//     const newJob = await Job.create(jobData);
-
-//     // 4. Create Standalone Reminder if configured
-//     if (reminderConfig) {
-//       await Reminder.create({
-//         userId,
-//         jobId: newJob._id,
-//         type: "apply",
-//         reminderDate: reminderConfig.rDate,
-//         targetDate: reminderConfig.targetDate,
-//         leadDays: reminderConfig.lead
-//       });
-//     }
-
-//     res.status(201).json({ success: true, message: "Job added to Wishlist", data: newJob });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: "Failed to create job", error: error.message });
-//   }
-// };
 
 const createJob = async (req, res) => {
   try {

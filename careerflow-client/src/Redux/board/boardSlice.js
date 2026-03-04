@@ -309,14 +309,7 @@ const boardSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // 3. Update Job (Column or Details)
-      // .addCase(updateJobColumn.fulfilled, (state, action) => {
-      //   const updatedJob = action.payload?.data || action.payload;
-      //   if (updatedJob && updatedJob._id) {
-      //     const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
-      //     if (index !== -1) state.jobs[index] = updatedJob;
-      //   }
-      // })
+  
       .addCase(updateJobColumn.fulfilled, (state, action) => {
         const updatedJob = action.payload?.data || action.payload;
         if (updatedJob && updatedJob._id) {
@@ -328,13 +321,7 @@ const boardSlice = createSlice({
           if (indexAll !== -1) state.allJobs[indexAll] = updatedJob;
         }
       })
-      // .addCase(updateJobDetails.fulfilled, (state, action) => {
-      //   const updatedJob = action.payload?.data || action.payload;
-      //   if (updatedJob && updatedJob._id) {
-      //     const index = state.jobs.findIndex((j) => j._id === updatedJob._id);
-      //     if (index !== -1) state.jobs[index] = updatedJob;
-      //   }
-      // })
+  
       .addCase(updateJobDetails.fulfilled, (state, action) => {
         const updatedJob = action.payload?.data || action.payload;
         if (updatedJob && updatedJob._id) {
