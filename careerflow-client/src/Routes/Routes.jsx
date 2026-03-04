@@ -5,7 +5,7 @@ import FAQPage from "../Pages/FAQPage/FAQPage";
 import OurStoryPage from "../Pages/OurStory/OurStoryPage";
 import LoadingSpinner from "../Components/Shared/LoadingSpinner/LoadingSpinner";
 import WhyAsk from "../Pages/WhyAskPage/WhyAsk";
-import Login from "../Pages/Auth/Login"
+import Login from "../Pages/Auth/Login";
 import Register from "../Pages/Auth/Register";
 import ProfilePage from "../Pages/ProfilePage/ProfilePage";
 import PrivateRoute from "./PrivateRoute";
@@ -13,6 +13,13 @@ import DashboardLayout from "../Layouts/DashboardLayout/DashboardLayout";
 import DashboardPage from "../Pages/DashboardPage/DashboardPage";
 import ApplicationsPage from "../Pages/Applications/ApplicationsPage";
 import BoardsPage from "../Pages/Boards/BoardsPage";
+import ResetPassword from "../Pages/Auth/ResetPassword";
+import ForgotPassword from "../Pages/Auth/ForgotPassword";
+
+// 1. ADDED YOUR ANALYTICS IMPORT BACK
+import Analytics from "../Components/Dashboard/Analytics/Analytics";
+import UpgradePage from "../Pages/UpgradePage/UpgradePage";
+
 export const router = createBrowserRouter([
   {
     path: "/", // Landing page layout !
@@ -32,18 +39,25 @@ export const router = createBrowserRouter([
       },
       {
         path: "/whyus",
-        element: <WhyAsk/>
+        element: <WhyAsk />,
       },
       {
         path: "/login",
-        element: <Login/>
+        element: <Login />,
       },
       {
         path: "/register",
-        element: <Register/>
+        element: <Register />,
       },
-      
-    ]
+      {
+        path: "/reset-password",
+        element: <ResetPassword />,
+      },
+      {
+        path: "/forgot-password",
+        element: <ForgotPassword />,
+      },
+    ],
   },
   {
     element: (
@@ -52,22 +66,31 @@ export const router = createBrowserRouter([
       </PrivateRoute>
     ),
     children: [
-      { 
-        path: "/profile", 
-        element: <ProfilePage/> 
+      {
+        path: "/profile",
+        element: <ProfilePage />,
       },
-      { 
-        path: "/dashboard", 
-        element: <DashboardPage /> 
+      {
+        path: "/dashboard",
+        element: <DashboardPage />,
       },
-      { 
-        path: "/applications", 
-        element: <ApplicationsPage /> 
+      {
+        path: "/applications",
+        element: <ApplicationsPage />,
       },
-      { 
-        path: "/boards", 
-        element: <BoardsPage /> 
+      {
+        path: "/boards",
+        element: <BoardsPage />,
       },
-    ]
+      // 2. ADDED YOUR ANALYTICS ROUTE BACK INTO THE DASHBOARD
+      {
+        path: "/analytics",
+        element: <Analytics />,
+      },
+      {
+        path: "/upgrade",
+        element: <UpgradePage />,
+      },
+    ],
   },
 ]);

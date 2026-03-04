@@ -1,6 +1,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router"; 
+import { Link, useNavigate } from "react-router";
 import { FaUserCircle, FaEnvelope, FaLock } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -11,30 +11,30 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading } = useSelector((state) => state.auth);
-  
-  const { register, handleSubmit,setError, formState: { errors } } = useForm();
+
+  const { register, handleSubmit, setError, formState: { errors } } = useForm();
 
   const handleSignIn = async (data) => {
     const resultAction = await dispatch(loginUser(data));
-    
+
     if (loginUser.fulfilled.match(resultAction)) {
       toast.success("Welcome back!");
       navigate("/profile"); // Redirect on success
     } else {
       const errorMessage = resultAction.payload || "Invalid email or password";
-    
-    setError("email", { type: "server", message: errorMessage });
-    setError("password", { type: "server", message: "Please check your credentials" });
+
+      setError("email", { type: "server", message: errorMessage });
+      setError("password", { type: "server", message: "Please check your credentials" });
       toast.error(resultAction.payload || "Login failed");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-100 text-base-content p-4 transition-colors duration-300">
-      
+
       {/* Glass Card */}
       <div className="w-full max-w-md bg-base-200/50 backdrop-blur-xl rounded-[3rem] p-10 shadow-2xl border border-base-300">
-        
+
         {/* User Icon */}
         <div className="flex justify-center mb-10">
           <div className="bg-primary/10 p-2 rounded-full">
@@ -44,7 +44,7 @@ const Login = () => {
         <h1 className="text-center text-2xl font-bold mb-6">User Login</h1>
 
         <form onSubmit={handleSubmit(handleSignIn)} className="space-y-8">
-          
+
           {/* Email Field */}
           <div>
             <div className="relative flex items-center border-b border-base-300 pb-2 focus-within:border-primary transition-all">
@@ -79,14 +79,14 @@ const Login = () => {
               <input type="checkbox" className="checkbox checkbox-xs" />
               <span>Remember me</span>
             </label>
-            <Link to="/forgot-password" className="italic hover:text-primary">
+            <button type="button" className="italic hover:text-primary bg-transparent border-none p-0 m-0" onClick={() => navigate("/forgot-password")}>
               Forgot Password?
-            </Link>
+            </button>
           </div>
 
           {/* Login Button */}
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="btn-primary w-full py-3 rounded-xl font-bold tracking-widest uppercase shadow-lg disabled:opacity-70"
           >
@@ -100,7 +100,7 @@ const Login = () => {
 
         {/* Google Button */}
         <div className="mt-4 opacity-90 flex justify-center">
-           <GoogleAuthButton />
+          <GoogleAuthButton />
         </div>
 
         <p className="text-center text-sm mt-8 opacity-80">
@@ -110,6 +110,7 @@ const Login = () => {
           </Link>
         </p>
       </div>
+
     </div>
   );
 };

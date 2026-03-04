@@ -1,23 +1,77 @@
 const Board = require("../models/Board");
 const Job = require("../models/Job");  
+const User = require("../models/User");
 /**
  * @desc    Create a new board
  * @route   POST /api/boards
  * @access  Private
  */
+// const createBoard = async (req, res) => {
+//   try {
+//     const { name, isPrimary } = req.body;
+//     const userId = req.user.id; // From your auth middleware
+
+//     //If this new board is intended to be the Primary board, 
+//     // we must first find any existing primary board and unset it.
+//     if (isPrimary) {
+//       await Board.updateMany({ userId }, { isPrimary: false });
+//     }
+
+//     //Create the board. 
+//     // The 'columns' will automatically populate with the schema defaults
+//     const newBoard = new Board({
+//       userId,
+//       name,
+//       isPrimary: isPrimary || false,
+//     });
+
+//     const savedBoard = await newBoard.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Board created successfully",
+//       data: savedBoard,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to create board",
+//       error: error.message,
+//     });
+//   }
+// };
+
 const createBoard = async (req, res) => {
   try {
     const { name, isPrimary } = req.body;
-    const userId = req.user.id; // From your auth middleware
+    const userId = req.user._id || req.user.id; // From your auth middleware
+    // ==========================================
+    // ⚠️ PAYWALL LOGIC: Enforce Board Limits
+    // ==========================================
+    const user = await User.findById(userId);
+    console.log(user)
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    //If this new board is intended to be the Primary board, 
-    // we must first find any existing primary board and unset it.
+    const currentBoardCount = await Board.countDocuments({ userId });
+    if (user.plan === 'starter' && currentBoardCount >= 1) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Starter plan limit reached (Max 1 Board). Please upgrade to Pro." 
+      });
+    }
+
+    if (user.plan === 'pro' && currentBoardCount >= 10) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Pro plan limit reached (Max 10 Boards). Please upgrade to Executive." 
+      });
+    }
+    // ==========================================
+
     if (isPrimary) {
       await Board.updateMany({ userId }, { isPrimary: false });
     }
 
-    //Create the board. 
-    // The 'columns' will automatically populate with the schema defaults
     const newBoard = new Board({
       userId,
       name,
@@ -39,7 +93,6 @@ const createBoard = async (req, res) => {
     });
   }
 };
-
 /**
  * @desc    Get all boards for the logged-in user
  * @route   GET /api/boards

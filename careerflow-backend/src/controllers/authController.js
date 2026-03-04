@@ -1,13 +1,13 @@
 const generateTokens = require("../utils/generateToken");
 const User = require("../models/User");
-const Board = require("../models/Board");  
+const Board = require("../models/Board");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/Otp");
 const nodemailer = require("nodemailer");
 const { OAuth2Client } = require('google-auth-library');
-const axios = require('axios'); 
+const axios = require('axios');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -58,7 +58,7 @@ const sendRegistrationOTP = async (req, res) => {
     await Otp.create({ email, otp: otpCode });
 
     const transporter = nodemailer.createTransport({
-      service: "gmail", 
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -66,7 +66,7 @@ const sendRegistrationOTP = async (req, res) => {
     });
     const mailOptions = {
       from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
-      to: email, 
+      to: email,
       subject: "Your CareerFlow Verification Code",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -96,9 +96,9 @@ const registerUser = async (req, res) => {
     const { name, email, password, plan, industries, imageUrl, otp } = req.body;
     const isExist = await User.findOne({ email });
     const validOtp = await Otp.findOne({ email, otp });
-        if (!validOtp) {
-            return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
-        }
+    if (!validOtp) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
     const newUser = new User({
@@ -112,10 +112,10 @@ const registerUser = async (req, res) => {
     });
 
     const savedUser = await newUser.save();
-    
+
     // --> INJECTED: Create the default Kanban board for standard registration <--
     await createDefaultBoard(savedUser._id);
-    
+
     await Otp.deleteMany({ email });
     const { accessToken, refreshToken } = generateTokens(savedUser);
     const cookieOptions = {
@@ -153,106 +153,106 @@ const registerUser = async (req, res) => {
  * @access  Public
  */
 const googleSignIn = async (req, res) => {
-    try {
-        // 1. Receive the token from frontend (it's actually an access_token)
-        const { idToken: accessToken } = req.body; 
+  try {
+    // 1. Receive the token from frontend (it's actually an access_token)
+    const { idToken: accessToken } = req.body;
 
-        if (!accessToken) {
-            return res.status(400).json({ success: false, message: "No token provided" });
-        }
-
-        // 2. Exchange the Access Token for User Info manually via Google API
-        const googleResponse = await axios.get(
-            `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`
-        );
-        
-        const { email, name, picture } = googleResponse.data;
-
-        // 3. Find or Create User
-        let user = await User.findOne({ email });
-
-        if (!user) {
-            const randomPassword = crypto.randomBytes(20).toString('hex');
-            const salt = bcrypt.genSaltSync(10);
-            const hash = bcrypt.hashSync(randomPassword, salt);
-
-            user = await User.create({
-                name,
-                email,
-                passwordHash: hash, 
-                imageUrl: picture,
-                authProvider: 'google',  
-                plan: 'starter',
-                industries: [] 
-            });
-
-            await createDefaultBoard(user._id);
-        }
-
-        // 4. Generate CareerFlow Tokens
-        const { accessToken: careerFlowToken, refreshToken } = generateTokens(user);
-        
-        const cookieOptions = { 
-            httpOnly: true, 
-            secure: process.env.NODE_ENV === "production", 
-            sameSite: "strict", 
-            maxAge: 7 * 24 * 60 * 60 * 1000 
-        };
-
-        return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
-            success: true,
-            message: "Google Sign-In Successful",
-            accessToken: careerFlowToken,
-            data: { 
-                id: user._id, 
-                name: user.name, 
-                email: user.email, 
-                plan: user.plan,
-                imageUrl: user.imageUrl,
-                industries: user.industries || [] ,
-                authProvider: user.authProvider
-            }
-        });
-
-    } catch (err) {
-        console.error("Google Auth Error:", err.response?.data || err.message);
-        return res.status(401).json({ 
-            success: false, 
-            message: "Google Authentication failed. Please try again." 
-        });
+    if (!accessToken) {
+      return res.status(400).json({ success: false, message: "No token provided" });
     }
+
+    // 2. Exchange the Access Token for User Info manually via Google API
+    const googleResponse = await axios.get(
+      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`
+    );
+
+    const { email, name, picture } = googleResponse.data;
+
+    // 3. Find or Create User
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const randomPassword = crypto.randomBytes(20).toString('hex');
+      const salt = bcrypt.genSaltSync(10);
+      const hash = bcrypt.hashSync(randomPassword, salt);
+
+      user = await User.create({
+        name,
+        email,
+        passwordHash: hash,
+        imageUrl: picture,
+        authProvider: 'google',
+        plan: 'starter',
+        industries: []
+      });
+
+      await createDefaultBoard(user._id);
+    }
+
+    // 4. Generate CareerFlow Tokens
+    const { accessToken: careerFlowToken, refreshToken } = generateTokens(user);
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    };
+
+    return res.status(200).cookie("refreshToken", refreshToken, cookieOptions).json({
+      success: true,
+      message: "Google Sign-In Successful",
+      accessToken: careerFlowToken,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        imageUrl: user.imageUrl,
+        industries: user.industries || [],
+        authProvider: user.authProvider
+      }
+    });
+
+  } catch (err) {
+    console.error("Google Auth Error:", err.response?.data || err.message);
+    return res.status(401).json({
+      success: false,
+      message: "Google Authentication failed. Please try again."
+    });
+  }
 };
 const setGoogleUserPassword = async (req, res) => {
-    try {
-        const { newPassword } = req.body;
-        
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
+  try {
+    const { newPassword } = req.body;
 
-        if (user.authProvider !== 'google') {
-            return res.status(400).json({ 
-                success: false, 
-                message: "This account already has a password. Please use the Change Password feature instead." 
-            });
-        }
-
-        const salt = bcrypt.genSaltSync(10);
-        user.passwordHash = bcrypt.hashSync(newPassword, salt);
-        
-        user.authProvider = 'both'; 
-
-        await user.save();
-
-        return res.status(200).json({ 
-            success: true, 
-            message: "Password set successfully. You can now log in using Google or your Email/Password." 
-        });
-
-    } catch (err) {
-        return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
+
+    if (user.authProvider !== 'google') {
+      return res.status(400).json({
+        success: false,
+        message: "This account already has a password. Please use the Change Password feature instead."
+      });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    user.passwordHash = bcrypt.hashSync(newPassword, salt);
+
+    user.authProvider = 'both';
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password set successfully. You can now log in using Google or your Email/Password."
+    });
+
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+  }
 };
 
 const loginUser = async (req, res) => {
@@ -260,13 +260,13 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user){
+    if (!user) {
       console.log("no user found")
       return res
         .status(401)
         .json({ success: false, message: "Invalid Credentials" });
     }
-      
+
     if (user.lockUntil && user.lockUntil > Date.now()) {
       return res.status(403).json({
         success: false,
@@ -455,7 +455,9 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const resetUrl = `${req.protocol}://${req.get("host")}/auth/reset-password/${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -463,30 +465,45 @@ const forgotPassword = async (req, res) => {
         pass: process.env.EMAIL_PASS,
       },
     });
+
     const mailOptions = {
       from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "CareerFlow Password Reset",
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2 style="color: #9333ea;">Password Reset Request</h2>
-            <p>Click the link below to securely reset your password. This link expires in 10 minutes.</p>
-            <a href="${resetUrl}" style="background-color: #9333ea; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #e0e0e0; border-radius: 16px; background-color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #9333ea; font-size: 28px; font-weight: 800; margin: 0;">CareerFlow</h1>
+            </div>
+            <div style="color: #1a1a1b; line-height: 1.6;">
+                <h2 style="font-size: 22px; font-weight: 700; color: #111827; margin-top: 0;">Password Reset Request</h2>
+                <p>Hello,</p>
+                <p>We received a request to reset the password for your CareerFlow account. No problem, we've got you covered!</p>
+                <p>Click the secure button below to choose a new password. This link will expire in <strong>10 minutes</strong>.</p>
+                
+                <div style="text-align: center; margin: 35px 0;">
+                    <a href="${resetUrl}" style="background-color: #9333ea; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 12px; font-weight: 600; display: inline-block; transition: background-color 0.3s ease;">Reset My Password</a>
+                </div>
+                
+                <p style="font-size: 14px; color: #6b7280;">If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>
+                <hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 30px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">&copy; 2024 CareerFlow. All rights reserved.</p>
+            </div>
         </div>
       `,
     };
     await transporter.sendMail(mailOptions);
     if (process.env.NODE_ENV === "development") {
-        return res.status(200).json({
-            success: true,
-            message: "Email sent. (DEV MODE: URL included below)",
-            resetUrl: resetUrl 
-        });
+      return res.status(200).json({
+        success: true,
+        message: "Email sent. (DEV MODE: URL included below)",
+        resetUrl: resetUrl
+      });
     } else {
-        return res.status(200).json({
-            success: true,
-            message: "If an account with that email exists, a reset link has been sent."
-        });
+      return res.status(200).json({
+        success: true,
+        message: "If an account with that email exists, a reset link has been sent."
+      });
     }
   } catch (err) {
     res

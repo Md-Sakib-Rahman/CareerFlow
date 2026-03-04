@@ -171,7 +171,10 @@ const ProfilePage = () => {
                   <p className="text-sm text-base-content/70 mb-6 leading-relaxed">
                     Unlock unlimited Kanban boards and AI matching.
                   </p>
-                  <button className="btn btn-secondary w-full rounded-2xl font-bold">
+                  <button
+                    onClick={() => navigate("/upgrade")}
+                    className="btn btn-secondary w-full rounded-2xl font-bold"
+                  >
                     Upgrade Now
                   </button>
                 </div>

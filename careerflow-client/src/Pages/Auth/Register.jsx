@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router"; 
+import { Link, useNavigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { FaUser, FaEnvelope, FaLock, FaImage, FaUserPlus, FaKey } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,7 +10,7 @@ const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading, otpSent } = useSelector((state) => state.auth);
-  
+
   // Local state for the image upload process
   const [imageUploading, setImageUploading] = useState(false);
 
@@ -18,12 +18,12 @@ const Register = () => {
 
   // Step 1: Request OTP
   const handleSendOtp = async () => {
-    const isValid = await trigger("email"); 
+    const isValid = await trigger("email");
     if (!isValid) return;
 
     const email = getValues("email");
     const resultAction = await dispatch(sendOtp(email));
-    
+
     if (sendOtp.fulfilled.match(resultAction)) {
       toast.success("OTP sent to your email!");
     } else {
@@ -52,7 +52,7 @@ const Register = () => {
         method: "POST",
         body: formData,
       });
-      
+
       const imgData = await response.json();
 
       if (!imgData.success) {
@@ -70,13 +70,13 @@ const Register = () => {
         email: data.email,
         password: data.password,
         otp: data.otp,
-        plan: "starter", 
+        plan: "starter",
         imageUrl: uploadedImageUrl, // Inserted the ImgBB URL here
       };
 
       // 5. Dispatch to your Redux Store
       const resultAction = await dispatch(registerUser(userData));
-      
+
       if (registerUser.fulfilled.match(resultAction)) {
         toast.success("Registration Successful!");
         navigate("/profile");
@@ -93,13 +93,13 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-100 text-base-content p-6 transition-colors duration-300">
       <title>Register</title>
-      
+
       <div className="w-full max-w-md bg-base-200/50 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-base-300">
-        
+
         <div className="flex justify-center mb-6">
-           <div className="bg-primary/10 p-4 rounded-full">
-              <FaUserPlus className="text-primary text-5xl" />
-           </div>
+          <div className="bg-primary/10 p-4 rounded-full">
+            <FaUserPlus className="text-primary text-5xl" />
+          </div>
         </div>
 
         <h2 className="text-center text-2xl font-bold mb-2">
@@ -108,7 +108,7 @@ const Register = () => {
         <p className="text-center opacity-60 mb-8 font-medium">Please Register</p>
 
         <form onSubmit={handleSubmit(handleRegister)} className="space-y-5">
-          
+
           {/* Name Field */}
           <div className="relative border-b border-base-300 pb-1 focus-within:border-primary transition-colors">
             <label className="text-xs opacity-70 font-semibold block">Name</label>
@@ -149,7 +149,7 @@ const Register = () => {
               <input
                 type="email"
                 disabled={otpSent || imageUploading}
-                {...register("email", { 
+                {...register("email", {
                   required: "Email is required",
                   pattern: { value: /^\S+@\S+\.\S+$/, message: "Invalid email" }
                 })}
@@ -196,8 +196,8 @@ const Register = () => {
           )}
 
           {/* Dynamic Submit Button */}
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading || imageUploading}
             className="btn-primary w-full py-3 mt-4 font-bold tracking-widest uppercase shadow-lg disabled:opacity-70 flex justify-center items-center"
           >
