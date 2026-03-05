@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchMe, logout } from "../../Redux/auth/authSlice";
 import {
@@ -81,7 +81,50 @@ const ProfilePage = () => {
       transition: { duration: 0.5, ease: "easeOut" },
     },
   };
+  {/*saiful*/}
+  const [isEditing, setIsEditing] = useState(false);
+const [formData, setFormData] = useState({
+  name: user?.name || "",
+  email: user?.email || "",
+  imageUrl: user?.imageUrl || ""
+});
+useEffect(() => {
+  if (user) {
+    setFormData({
+      name: user.name,
+      email: user.email,
+      imageUrl: user.imageUrl || ""
+    });
+  }
+}, [user]);
+const handleChange = (e) => {
+  setFormData({
+    ...formData,
+    [e.target.name]: e.target.value,
+  });
+};
+const handleUpdateProfile = async () => {
+  if (!formData.name.trim()) {
+    return toast.error("Name cannot be empty");
+  }
 
+  try {
+    setIsSubmitting(true);
+
+    const res = await privateApi.patch("/auth/update-me", formData);
+
+    if (res.data.success) {
+      toast.success("Profile updated successfully 🎉");
+
+      dispatch(fetchMe());
+      setIsEditing(false);
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Update failed");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   return (
     <div className="relative w-full overflow-hidden min-h-full p-10">
       {/* Animated Ambient Blurs */}
@@ -124,9 +167,10 @@ const ProfilePage = () => {
                   <div className="relative mb-4">
                     <div className="avatar">
                       <div className="w-32 h-32 rounded-full ring-4 ring-base-100 bg-base-200 shadow-xl overflow-hidden">
-                        <img
-                          src={
-                            user.imageUrl || "https://via.placeholder.com/150"
+                        <img 
+                          src={formData.imageUrl || "https://via.placeholder.com/150"
+                            
+                            
                           }
                           alt="Avatar"
                           className="w-full h-full object-cover"
@@ -134,9 +178,21 @@ const ProfilePage = () => {
                         />
                       </div>
                     </div>
-                    <button className="absolute bottom-1 right-1 bg-primary text-primary-content p-2.5 rounded-full shadow-lg border-2 border-base-100 hover:scale-110 transition-transform">
+                    {/*<button className="absolute bottom-1 right-1 bg-primary text-primary-content p-2.5 rounded-full shadow-lg border-2 border-base-100 hover:scale-110 transition-transform">
                       <FaCamera size={14} />
-                    </button>
+                    </button>*/}
+                    <button
+  onClick={() => {
+    const url = prompt("Enter new image URL");
+    if (url) {
+      setFormData({ ...formData, imageUrl: url });
+    }
+  }}
+  className="absolute bottom-1 right-1 bg-primary text-primary-content p-2.5 rounded-full"
+>
+  <FaCamera size={14} />
+</button>
+                    
                   </div>
                   <h2 className="text-2xl font-bold">{user.name}</h2>
                   <p className="text-sm opacity-60 mb-5">{user.email}</p>
@@ -196,22 +252,73 @@ const ProfilePage = () => {
                   </div>
                   Personal Info
                 </h3>
-                <button className="btn btn-ghost btn-sm text-primary">
+                {/* <button className="btn btn-ghost btn-sm text-primary">
                   Edit
-                </button>
+                </button>*/}
+                
+                
+                {/*saiful*/}
+                  {!isEditing ? (
+  <button
+    onClick={() => setIsEditing(true)}
+    className="btn btn-ghost btn-sm text-primary"
+  >
+    Edit
+  </button>
+) : (
+  <div className="flex gap-2">
+    <button
+  onClick={handleUpdateProfile}
+  disabled={isSubmitting}
+  className="btn btn-primary btn-sm"
+>
+  {isSubmitting ? "Saving..." : "Save"}
+</button>
+
+    <button
+      onClick={() => setIsEditing(false)}
+      className="btn btn-ghost btn-sm"
+    >
+      Cancel
+    </button>
+  </div>
+)}
+                {/*saiful*/}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <label className="text-[10px] font-bold opacity-50 uppercase tracking-widest">
                     Full Name
                   </label>
-                  <p className="text-lg font-semibold">{user.name}</p>
+                  {/*<p className="text-lg font-semibold">{user.name}</p>*/}
+                  {isEditing ? (
+  <input
+    type="text"
+    name="name"
+    value={formData.name}
+    onChange={handleChange}
+    className="input input-bordered w-full"
+  />
+) : (
+  <p className="text-lg font-semibold">{user.name}</p>
+)}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold opacity-50 uppercase tracking-widest">
                     Email Address
                   </label>
-                  <p className="text-lg font-semibold">{user.email}</p>
+                  {/*<p className="text-lg font-semibold">{user.email}</p>*/}
+                  {isEditing ? (
+  <input
+    type="email"
+    name="email"
+    value={formData.email}
+    onChange={handleChange}
+    className="input input-bordered w-full"
+  />
+) : (
+  <p className="text-lg font-semibold">{user.email}</p>
+)}
                 </div>
                 
               </div>

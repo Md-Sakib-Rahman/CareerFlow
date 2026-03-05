@@ -402,7 +402,7 @@ const getMe = async (req, res) => {
   }
 };
 
-const updateMe = async (req, res) => {
+{/*const updateMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
@@ -431,6 +431,61 @@ const updateMe = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Server Error", error: err.message });
+  }
+};*/}
+
+const updateMe = async (req, res) => {
+  try {
+    const { name, email, industries, imageUrl } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Prevent email duplication
+    if (email && email !== user.email) {
+      const existingEmail = await User.findOne({ email });
+
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already in use",
+        });
+      }
+
+      user.email = email;
+    }
+
+    if (name) user.name = name;
+    if (industries) user.industries = industries;
+    if (imageUrl) user.imageUrl = imageUrl;
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        industries: updatedUser.industries,
+        imageUrl: updatedUser.imageUrl,
+        plan: updatedUser.plan,
+        authProvider: updatedUser.authProvider
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: err.message,
+    });
   }
 };
 
