@@ -213,6 +213,7 @@ const ProfilePage = () => {
                   </label>
                   <p className="text-lg font-semibold">{user.email}</p>
                 </div>
+                
               </div>
             </motion.div>
 
