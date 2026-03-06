@@ -408,7 +408,7 @@ const updateMe = async (req, res) => {
 
     if (user) {
       user.name = req.body.name || user.name;
-      user.email = req.body.email || user.email;   // ✅ add email update by saiful
+      user.email = req.body.email || user.email;   // ✅ add email update added by saiful
       user.industries = req.body.industries || user.industries;
       user.imageUrl = req.body.imageUrl || user.imageUrl;
 

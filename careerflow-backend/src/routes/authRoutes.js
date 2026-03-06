@@ -42,7 +42,7 @@ router.patch("/reset-password/:token", resetPassword);
 // Profile Management
 
 router.get("/me", protect, getMe); 
-router.patch("/update-me", protect, updateMe); 
+router.put("/update-me", protect, updateMe); 
 
 // Password Linking for Google Users
 router.post("/set-password", protect, setGoogleUserPassword);
