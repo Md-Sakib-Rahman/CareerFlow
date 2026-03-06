@@ -14,20 +14,27 @@ const Register = () => {
   // Local state for the image upload process
   const [imageUploading, setImageUploading] = useState(false);
 
-  const { register, handleSubmit, getValues, trigger, formState: { errors } } = useForm();
+  // ⚠️ NEW: Added `setError` from useForm to handle backend email validation
+  const { register, handleSubmit, getValues, trigger, setError, formState: { errors } } = useForm();
 
   // Step 1: Request OTP
   const handleSendOtp = async () => {
-    const isValid = await trigger("email");
+    // ⚠️ NEW: Validate all initial fields before sending the OTP so we don't waste an API call
+    const isValid = await trigger(["name", "email", "password", "photo"]);
     if (!isValid) return;
 
     const email = getValues("email");
-    const resultAction = await dispatch(sendOtp(email));
+    
+    // Depending on your thunk, you might need to pass { email } instead of just email
+    const resultAction = await dispatch(sendOtp(email )); 
 
     if (sendOtp.fulfilled.match(resultAction)) {
       toast.success("OTP sent to your email!");
     } else {
-      toast.error(resultAction.payload || "Failed to send OTP");
+      // ⚠️ NEW: Extract the exact error message and bind it directly to the email input
+      const errorMessage = resultAction.payload?.message || resultAction.payload || "This email is already registered.";
+      toast.error(errorMessage);
+      setError("email", { type: "server", message: errorMessage });
     }
   };
 
@@ -71,7 +78,7 @@ const Register = () => {
         password: data.password,
         otp: data.otp,
         plan: "starter",
-        imageUrl: uploadedImageUrl, // Inserted the ImgBB URL here
+        imageUrl: uploadedImageUrl,
       };
 
       // 5. Dispatch to your Redux Store
@@ -81,7 +88,7 @@ const Register = () => {
         toast.success("Registration Successful!");
         navigate("/profile");
       } else {
-        toast.error(resultAction.payload || "Registration failed");
+        toast.error(resultAction.payload?.message || resultAction.payload || "Registration failed");
       }
     } catch (error) {
       toast.error("Something went wrong during the upload process.");
@@ -105,7 +112,7 @@ const Register = () => {
         <h2 className="text-center text-2xl font-bold mb-2">
           Welcome to <span className="text-primary">Career</span>Flow
         </h2>
-        <p className="text-center opacity-60 mb-8 font-medium">Please Register</p>
+        <p className="text-center opacity-60 mb-8 font-medium">Create your account</p>
 
         <form onSubmit={handleSubmit(handleRegister)} className="space-y-5">
 
@@ -118,15 +125,15 @@ const Register = () => {
                 type="text"
                 disabled={otpSent || imageUploading}
                 {...register("name", { required: "Name is required" })}
-                className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 dark:placeholder-white/50 disabled:opacity-50"
+                className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 disabled:opacity-50"
                 placeholder="Your name"
               />
             </div>
-            {errors.name && <p className="text-error text-[10px] mt-1">{errors.name.message}</p>}
+            {errors.name && <p className="text-error text-[10px] mt-1 font-bold">{errors.name.message}</p>}
           </div>
 
           {/* Photo Field */}
-          <div className="relative border-b border-base-300 pb-1">
+          <div className="relative border-b border-base-300 pb-1 focus-within:border-primary transition-colors">
             <label className="text-xs opacity-70 font-semibold block">Photo</label>
             <div className="flex items-center">
               <FaImage className="mr-2 opacity-60" />
@@ -138,14 +145,14 @@ const Register = () => {
                 className="bg-transparent outline-none w-full py-1 text-xs file:hidden cursor-pointer disabled:opacity-50"
               />
             </div>
-            {errors.photo && <p className="text-error text-[10px] mt-1">{errors.photo.message}</p>}
+            {errors.photo && <p className="text-error text-[10px] mt-1 font-bold">{errors.photo.message}</p>}
           </div>
 
           {/* Email Field */}
-          <div className="relative border-b border-base-300 pb-1 focus-within:border-primary">
-            <label className="text-xs opacity-70 font-semibold block">Email</label>
+          <div className={`relative border-b pb-1 transition-colors ${errors.email ? 'border-error' : 'border-base-300 focus-within:border-primary'}`}>
+            <label className={`text-xs font-semibold block ${errors.email ? 'text-error' : 'opacity-70'}`}>Email</label>
             <div className="flex items-center">
-              <FaEnvelope className="mr-2 opacity-60" />
+              <FaEnvelope className={`mr-2 ${errors.email ? 'text-error' : 'opacity-60'}`} />
               <input
                 type="email"
                 disabled={otpSent || imageUploading}
@@ -153,45 +160,46 @@ const Register = () => {
                   required: "Email is required",
                   pattern: { value: /^\S+@\S+\.\S+$/, message: "Invalid email" }
                 })}
-                className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 dark:placeholder-white/50 disabled:opacity-50"
-                placeholder="Email ID"
+                className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 disabled:opacity-50"
+                placeholder="Email address"
               />
             </div>
-            {errors.email && <p className="text-error text-[10px] mt-1">{errors.email.message}</p>}
+            {/* ⚠️ This perfectly maps the backend error specifically to the email field */}
+            {errors.email && <p className="text-error text-[10px] mt-1 font-bold">{errors.email.message}</p>}
           </div>
 
           {/* Password Field */}
-          <div className="relative border-b border-base-300 pb-1 focus-within:border-primary">
+          <div className="relative border-b border-base-300 pb-1 focus-within:border-primary transition-colors">
             <label className="text-xs opacity-70 font-semibold block">Password</label>
             <div className="flex items-center">
               <FaLock className="mr-2 opacity-60" />
               <input
                 type="password"
                 disabled={otpSent || imageUploading}
-                {...register("password", { required: "Password is required", minLength: { value: 6, message: "Min 6 chars" } })}
-                className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 dark:placeholder-white/50 disabled:opacity-50"
-                placeholder="Password"
+                {...register("password", { required: "Password is required", minLength: { value: 6, message: "Minimum 6 characters required" } })}
+                className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 disabled:opacity-50"
+                placeholder="Create a password"
               />
             </div>
-            {errors.password && <p className="text-error text-[10px] mt-1">{errors.password.message}</p>}
+            {errors.password && <p className="text-error text-[10px] mt-1 font-bold">{errors.password.message}</p>}
           </div>
 
           {/* Dynamic OTP Field */}
           {otpSent && (
-            <div className="relative border-b border-base-300 pb-1 focus-within:border-primary transition-colors animate-fade-in">
-              <label className="text-xs opacity-70 font-semibold block text-primary">Verification Code</label>
+            <div className="relative border-b border-primary pb-1 focus-within:border-primary transition-colors animate-fade-in">
+              <label className="text-xs font-semibold block text-primary">Verification Code</label>
               <div className="flex items-center">
                 <FaKey className="mr-2 text-primary opacity-80" />
                 <input
                   type="text"
                   disabled={imageUploading}
                   {...register("otp", { required: "OTP is required" })}
-                  className="bg-transparent outline-none w-full py-1 placeholder-base-content/50 dark:placeholder-white/50"
+                  className="bg-transparent outline-none w-full py-1 placeholder-base-content/50"
                   placeholder="Enter 6-digit OTP"
                   maxLength={6}
                 />
               </div>
-              {errors.otp && <p className="text-error text-[10px] mt-1">{errors.otp.message}</p>}
+              {errors.otp && <p className="text-error text-[10px] mt-1 font-bold">{errors.otp.message}</p>}
             </div>
           )}
 
@@ -227,3 +235,4 @@ const Register = () => {
 };
 
 export default Register;
+

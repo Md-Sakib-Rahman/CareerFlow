@@ -3,6 +3,7 @@ import HeroSection from '../../Components/HomeComponents/HeroSection'
 import FeaturesSection from '../../Components/HomeComponents/FeaturesSection'
 import TestimonialsSection from '../../Components/HomeComponents/TestimonialsSection'
 import PricingSection from '../../Components/HomeComponents/PricingSection'
+import StaticDashboardPreview from '../../Components/StaticDashboardPreview/StaticDashboardPreview';
 
 const HomePage = () => {
   return (
@@ -11,6 +12,7 @@ const HomePage = () => {
       <FeaturesSection />
       <TestimonialsSection />
       <PricingSection />
+      <StaticDashboardPreview />
     </div>
   );
 };
