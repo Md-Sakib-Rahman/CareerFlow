@@ -5,7 +5,7 @@ import { Link, NavLink, useNavigate } from "react-router";
 import { useSelector, useDispatch } from "react-redux";
 import { logout, fetchMe } from "../../../Redux/auth/authSlice"; 
 import ThemeController from "../ThemeController/ThemeController";
-
+import CFlogo from "../../../assets/CFLogo.png";
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const dispatch = useDispatch();
@@ -42,8 +42,8 @@ export default function Navbar() {
           
           {/* Logo Section */}
           <Link to="/" className="flex items-center gap-2 cursor-pointer group">
-            <div className="w-10 h-10 flex items-center justify-center rounded-box bg-primary text-primary-content font-bold text-lg shadow-md group-hover:scale-105 transition-transform">
-              🎁
+            <div className="w-10 h-10 flex items-center justify-center rounded-box  text-primary-content font-bold text-lg shadow-md group-hover:scale-105 transition-transform">
+              <img src={CFlogo} alt="CareerFlow Logo" />
             </div>
             <span className="text-xl font-bold text-primary tracking-tight">
               CareerFlow
