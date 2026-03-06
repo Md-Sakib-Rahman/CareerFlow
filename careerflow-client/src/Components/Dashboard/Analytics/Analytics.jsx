@@ -353,7 +353,7 @@ const Analytics = () => {
 };
 
 const StatCard = ({ title, value, desc, icon, color }) => (
-  <div className={`bg-base-200 p-6 rounded-3xl border border-base-300 shadow-lg relative overflow-hidden group hover:border-${color} transition-all duration-500`}>
+  <div className={`bg-base-200 p-6 rounded-3xl border border-base-300 shadow-lg relative overflow-hidden group hover:border-primary transition-all duration-500`}>
     <div className="relative z-10">
       <div className="flex justify-between items-start mb-4">
         <div className={`p-3 rounded-2xl bg-base-300 group-hover:bg-${color}/10 transition-colors`}>{icon}</div>
