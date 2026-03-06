@@ -455,7 +455,11 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    // ⚠️ NEW: Dynamically assign the URL based on the environment
+    const frontendUrl = process.env.NODE_ENV === "production" 
+      ? "https://career-flow-six.vercel.app" 
+      : "http://localhost:5173";
+      
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     const transporter = nodemailer.createTransport({
@@ -493,6 +497,7 @@ const forgotPassword = async (req, res) => {
       `,
     };
     await transporter.sendMail(mailOptions);
+    
     if (process.env.NODE_ENV === "development") {
       return res.status(200).json({
         success: true,
