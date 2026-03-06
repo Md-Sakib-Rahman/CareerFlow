@@ -406,31 +406,34 @@ const updateMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
-    if (user) {
-      user.name = req.body.name || user.name;
-      user.industries = req.body.industries || user.industries;
-      user.imageUrl = req.body.imageUrl || user.imageUrl;
-
-      const updatedUser = await user.save();
-
-      res.status(200).json({
-        success: true,
-        message: "Profile updated successfully",
-        data: {
-          id: updatedUser._id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          industries: updatedUser.industries,
-          imageUrl: updatedUser.imageUrl,
-        },
-      });
-    } else {
-      res.status(404).json({ success: false, message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
+
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;   // ✅ add email update
+    user.industries = req.body.industries || user.industries;
+    user.imageUrl = req.body.imageUrl || user.imageUrl;
+
+    const updatedUser = await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        industries: updatedUser.industries,
+        imageUrl: updatedUser.imageUrl,
+      },
+    });
   } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: err.message,
+    });
   }
 };
 
