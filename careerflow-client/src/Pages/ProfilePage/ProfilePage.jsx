@@ -35,7 +35,7 @@ const ProfilePage = () => {
   const isStarter = user?.plan?.toLowerCase() === "starter";
   const isGoogleUser = user?.authProvider === "google";
 
-  // 🔹 Sync local state with Redux user whenever it updates
+  // Sync Redux user with local state
   useEffect(() => {
     setName(user?.name || "");
     setEmail(user?.email || "");
@@ -48,6 +48,7 @@ const ProfilePage = () => {
     navigate("/login");
   };
 
+  // Handle image preview
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -56,29 +57,55 @@ const ProfilePage = () => {
     }
   };
 
- const handleUpdateProfile = async () => {
-  try {
-    setIsSubmitting(true);
+  // Upload image to ImgBB
+  const uploadToImgBB = async (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
 
-    const res = await privateApi.patch("/auth/update-me", {
-      name,
-      email,
-      imageUrl,
-    });
+    const res = await fetch(
+      `https://api.imgbb.com/1/upload?key=${process.env.REACT_APP_IMGBB_API}`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
-    if (res.data.success) {
-      toast.success("Profile updated successfully");
+    const data = await res.json();
+    if (data.success) return data.data.url;
+    throw new Error("Image upload failed");
+  };
 
-      dispatch(fetchMe()); // refresh redux user
-      setEditMode(false);
+  // Update profile
+  const handleUpdateProfile = async () => {
+    try {
+      setIsSubmitting(true);
+      let uploadedImageUrl = imageUrl;
+
+      if (image) {
+        uploadedImageUrl = await uploadToImgBB(image);
+      }
+
+      const res = await privateApi.patch("/auth/update-me", {
+        name,
+        email,
+        imageUrl: uploadedImageUrl,
+      });
+
+      if (res.data.success) {
+        toast.success("Profile updated successfully");
+        dispatch(fetchMe());
+        setEditMode(false);
+        setImage(null);
+        setImagePreview(null);
+      }
+    } catch (error) {
+      toast.error(error.message || "Update failed");
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Update failed");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
+  // Google users: set password
   const handleSetPassword = async (e) => {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -111,12 +138,10 @@ const ProfilePage = () => {
   return (
     <div className="relative w-full overflow-hidden min-h-full p-10">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-
         {/* LEFT PROFILE CARD */}
         <div className="space-y-8">
           <div className="bg-base-100 rounded-[2rem] shadow-xl overflow-hidden">
             <div className="h-32 bg-gradient-to-r from-primary to-secondary"></div>
-
             <div className="px-8 pb-8 flex flex-col items-center -mt-16">
               <div className="avatar mb-4 relative">
                 <div className="w-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 overflow-hidden">
@@ -127,7 +152,6 @@ const ProfilePage = () => {
                   />
                 </div>
 
-                {/* Hidden file input */}
                 <input
                   type="file"
                   accept="image/*"
@@ -136,7 +160,6 @@ const ProfilePage = () => {
                   id="profileImageInput"
                 />
 
-                {/* Camera Button */}
                 <label
                   htmlFor="profileImageInput"
                   className="absolute bottom-1 right-1 bg-primary text-white p-2 rounded-full cursor-pointer hover:scale-110 transition"
