@@ -14,6 +14,7 @@ import {
   ExternalLink,
   DollarSign,
   X,
+  NotebookPen,
 } from "lucide-react";
 
 // Redux Actions
@@ -152,6 +153,11 @@ const JobCard = ({ job, isOverlay }) => {
               <li>
                 <button onClick={(e) => handleAction(e, "edit")}>
                   <Edit3 size={16} /> Edit Job
+                </button>
+              </li>
+              <li>
+                <button onClick={(e) => handleAction(e, "add_note")}>
+                  <NotebookPen size={16} /> Add Note
                 </button>
               </li>
               <li>

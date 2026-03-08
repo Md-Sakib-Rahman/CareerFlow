@@ -241,6 +241,7 @@ const boardSlice = createSlice({
       state.ui.activeModal = action.payload.modal;
       state.ui.selectedJob = action.payload.job || null;
     },
+    
     openConfirmModal: (state, action) => {
       state.ui.activeModal = "confirmAction";
       state.ui.selectedJob = action.payload.job || null;
