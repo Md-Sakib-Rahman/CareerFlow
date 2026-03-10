@@ -18,17 +18,17 @@ import {
 } from "lucide-react";
 
 // Redux Actions
-import { 
-  setModal, 
-  moveToNextStage, 
-  moveToPreviousStage, 
-  rejectJobAction, 
-  deleteJob 
+import {
+  setModal,
+  moveToNextStage,
+  moveToPreviousStage,
+  rejectJobAction,
+  deleteJob,
 } from "../../../Redux/board/boardSlice";
 
 const JobCard = ({ job, isOverlay }) => {
   const dispatch = useDispatch();
-  
+
   // 1. Get column configuration directly from Redux instead of props
   const { activeBoard } = useSelector((state) => state.board);
   const columns = activeBoard?.columns || [];
@@ -156,8 +156,10 @@ const JobCard = ({ job, isOverlay }) => {
                 </button>
               </li>
               <li>
-                <button onClick={(e) => handleAction(e, "add_note")}>
-                  <NotebookPen size={16} /> Add Note
+                <button
+                  onClick={() => dispatch(setModal({ modal: "notePad", job }))}>
+                  <NotebookPen size={16} />
+                  <span>Note Pad</span>
                 </button>
               </li>
               <li>
@@ -165,7 +167,7 @@ const JobCard = ({ job, isOverlay }) => {
                   <Bell size={16} /> Set Reminder
                 </button>
               </li>
-              
+
               {/* Previous Stage Logic */}
               {!isFirstStage && (
                 <li>
@@ -173,7 +175,8 @@ const JobCard = ({ job, isOverlay }) => {
                     onClick={(e) => handleAction(e, "prev")}
                     className="text-warning font-medium"
                   >
-                    <ArrowRight size={16} className="rotate-180" /> Previous Stage
+                    <ArrowRight size={16} className="rotate-180" /> Previous
+                    Stage
                   </button>
                 </li>
               )}
@@ -201,7 +204,7 @@ const JobCard = ({ job, isOverlay }) => {
                   </button>
                 </li>
               )}
-              
+
               {job.url && (
                 <li>
                   <a href={job.url} target="_blank" rel="noreferrer">
