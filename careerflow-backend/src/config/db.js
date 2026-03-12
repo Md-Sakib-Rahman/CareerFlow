@@ -16,7 +16,7 @@
 const mongoose = require("mongoose");
 
 // Global cache variable to reuse the connection between Vercel function invocations
-let isConnected = false; 
+let isConnected = false;
 
 const connectDB = async () => {
   if (isConnected) {
@@ -35,3 +35,19 @@ const connectDB = async () => {
 };
 
 module.exports = connectDB;
+
+// .......................
+// const mongoose = require("mongoose");
+
+// const dbConnect = async () => {
+//   try {
+//     const conn = await mongoose.connect(process.env.MONGO_URL);
+
+//     console.log("MongoDB Connected:", conn.connection.host);
+//   } catch (error) {
+//     console.error("MongoDB Error:", error.message);
+//     process.exit(1);
+//   }
+// };
+
+// module.exports = dbConnect;
