@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, DollarSign, Calendar, ExternalLink } from 'lucide-react';
+import { Building2, DollarSign, Calendar, ExternalLink, NotebookPen } from 'lucide-react';
 import { setModal } from "../../../Redux/board/boardSlice"; // Make sure path is correct
 
 const StaticJobCard = ({ job, dispatch }) => {
