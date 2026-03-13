@@ -241,6 +241,26 @@ const boardSlice = createSlice({
       state.ui.activeModal = action.payload.modal;
       state.ui.selectedJob = action.payload.job || null;
     },
+
+    // START: Added for Note Pad logic
+    updateJobNotes: (state, action) => {
+      const { jobId, notes } = action.payload;
+      
+      const index = state.jobs.findIndex((j) => j._id === jobId);
+      if (index !== -1) {
+        state.jobs[index].notes = notes;
+      }
+      
+      const indexAll = state.allJobs.findIndex((j) => j._id === jobId);
+      if (indexAll !== -1) {
+        state.allJobs[indexAll].notes = notes;
+      }
+
+      if (state.ui.selectedJob && state.ui.selectedJob._id === jobId) {
+        state.ui.selectedJob.notes = notes;
+      }
+    },
+    
     openConfirmModal: (state, action) => {
       state.ui.activeModal = "confirmAction";
       state.ui.selectedJob = action.payload.job || null;
@@ -393,6 +413,7 @@ export const {
   openConfirmModal,
   clearModal,
   clearBoardState,
+  updateJobNotes,
 } = boardSlice.actions;
 
 export default boardSlice.reducer;
