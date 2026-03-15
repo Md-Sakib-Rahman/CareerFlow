@@ -11,6 +11,12 @@ const resumeSchema = new mongoose.Schema({
     default: "General",
   },
 
+  jobId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Job",
+    default: null,
+  },
+
   fileUrl: {
     type: String,
     required: true,
