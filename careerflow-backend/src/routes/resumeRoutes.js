@@ -2,14 +2,11 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { Readable } = require("stream");
-
 const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
-
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// হেল্পার ফাংশন: ক্লাউডিনারিতে স্ট্রিম আপলোড করার জন্য
 const uploadToCloudinary = (file) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -29,7 +26,6 @@ router.post("/add", upload.single("resume"), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     const result = await uploadToCloudinary(req.file);
-
     const resume = new Resume({
       name: req.file.originalname,
       type: req.body.type || "General",
@@ -45,25 +41,20 @@ router.post("/add", upload.single("resume"), async (req, res) => {
   }
 });
 
-/* Update Resume (PATCH) - এটি আপনার ফাইলে ছিল না */
+/* Update Resume (PATCH) - */
 router.patch("/:id", upload.single("resume"), async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
     if (!resume) return res.status(404).json({ message: "Resume not found" });
 
-    // টেক্সট ডাটা আপডেট
     if (req.body.type) resume.type = req.body.type;
-    if (req.body.jobId)
-      resume.jobId = req.body.jobId === "General" ? null : req.body.jobId;
+    if (req.body.jobId) resume.jobId = req.body.jobId === "General" ? null : req.body.jobId;
 
-    // যদি নতুন ফাইল আপলোড করা হয়
     if (req.file) {
-      // পুরনো ফাইল ডিলিট
       await cloudinary.uploader.destroy(resume.cloudinaryId, {
         resource_type: "raw",
       });
 
-      // নতুন ফাইল আপলোড
       const result = await uploadToCloudinary(req.file);
       resume.fileUrl = result.secure_url;
       resume.cloudinaryId = result.public_id;
@@ -71,7 +62,6 @@ router.patch("/:id", upload.single("resume"), async (req, res) => {
     }
 
     await resume.save();
-    // ডাটা পপুলেট করে পাঠানো যাতে ফ্রন্টএন্ডে জবের নাম দেখা যায়
     const updated = await Resume.findById(resume._id).populate(
       "jobId",
       "title company",

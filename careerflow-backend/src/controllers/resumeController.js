@@ -2,9 +2,7 @@ const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
 const Job = require("../models/Job");
 
-// ==========================
 // Upload Resume
-// ==========================
 exports.uploadResume = async (req, res) => {
   try {
     if (!req.files || !req.files.resume) {
@@ -33,7 +31,7 @@ exports.uploadResume = async (req, res) => {
     const newResume = await Resume.create(newResumeData);
 
     await newResume.populate({ path: "jobId", select: "title company _id" });
-
+    
     res.status(201).json(newResume);
   } catch (error) {
     console.error(error);
@@ -41,9 +39,7 @@ exports.uploadResume = async (req, res) => {
   }
 };
 
-// ==========================
 // Get all resumes
-// ==========================
 exports.getResumes = async (req, res) => {
   try {
     const resumes = await Resume.find()
@@ -56,9 +52,7 @@ exports.getResumes = async (req, res) => {
   }
 };
 
-// ==========================
 // Delete resume
-// ==========================
 exports.deleteResume = async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
@@ -77,13 +71,10 @@ exports.deleteResume = async (req, res) => {
   }
 };
 
-// ==========================
 // Update Resume (Edit)
-// ==========================
 exports.updateResume = async (req, res) => {
   try {
     const { name, type, jobId } = req.body;
-
     const resume = await Resume.findById(req.params.id);
     if (!resume) return res.status(404).json({ message: "Resume not found" });
 
@@ -109,12 +100,10 @@ exports.updateResume = async (req, res) => {
       resume.fileUrl = result.secure_url;
       resume.cloudinaryId = result.public_id;
     }
-
     await resume.save();
 
     // Populate job info
     await resume.populate({ path: "jobId", select: "title company _id" });
-
     res.status(200).json(resume);
   } catch (error) {
     console.error(error);
