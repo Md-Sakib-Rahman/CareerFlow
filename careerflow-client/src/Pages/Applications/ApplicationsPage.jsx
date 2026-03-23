@@ -12,6 +12,7 @@ import {
 import StaticJobCard from "../../Components/Dashboard/StaticJobCard/StaticJobCard";
 import ViewJobModal from "../../Components/Dashboard/ViewJobModal/ViewJobModal";
 import EditJobModal from "../../Components/Dashboard/EditJobModal/EditJobModal";
+import NotePadModal from "../../Components/Dashboard/NotePadModal/NotePadModal";
 
 const ApplicationsPage = () => {
   const dispatch = useDispatch();
@@ -219,9 +220,6 @@ const ApplicationsPage = () => {
       {/* ========================================== */}
       {activeModal === "view" && (
         <ViewJobModal job={ui.selectedJob} onClose={() => dispatch(clearModal())} />
-      )}
-      {activeModal === "edit" && (
-        <EditJobModal job={ui.selectedJob} onClose={() => dispatch(clearModal())} />
       )}
     </div>
   );

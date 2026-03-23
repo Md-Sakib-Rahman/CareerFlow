@@ -19,6 +19,7 @@ import AddJobModal from "../../Components/Dashboard/AddJobModal/AddJobModal";
 import EditJobModal from "../../Components/Dashboard/EditJobModal/EditJobModal";
 import ViewJobModal from "../../Components/Dashboard/ViewJobModal/ViewJobModal";
 import SetReminderModal from "../../Components/Dashboard/SetReminderModal/SetReminderModal";
+import NotePadModal from "../../Components/Dashboard/NotePadModal/NotePadModal"; // New Note Pad Modal
 
 const DashboardPage = () => {
   const dispatch = useDispatch();
@@ -136,6 +137,13 @@ const DashboardPage = () => {
       {/* 4. Reminder Modal */}
       {activeModal === "reminder" && (
         <SetReminderModal job={selectedJob} onClose={() => dispatch(clearModal())} />
+      )}
+      {/* 5. Note Pad Modal */}
+      {activeModal === "notePad" && (
+        <NotePadModal 
+          job={selectedJob} 
+          onClose={() => dispatch(clearModal())} 
+        />
       )}
     </div>
   );
