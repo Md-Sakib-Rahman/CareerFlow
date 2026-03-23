@@ -1,8 +1,7 @@
 const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
-const Job = require("../models/Job");
 
-// Upload Resume
+// Upload resume
 exports.uploadResume = async (req, res) => {
   try {
     if (!req.files || !req.files.resume) {
@@ -17,21 +16,14 @@ exports.uploadResume = async (req, res) => {
       folder: "resumes",
     });
 
-    const newResumeData = {
+    const newResume = await Resume.create({
       name: file.name,
       type: req.body.type || "General",
       fileUrl: result.secure_url,
       cloudinaryId: result.public_id,
-    };
+      userId: req.user.id,
+    });
 
-    if (req.body.jobId) {
-      newResumeData.jobId = req.body.jobId;
-    }
-
-    const newResume = await Resume.create(newResumeData);
-
-    await newResume.populate({ path: "jobId", select: "title company _id" });
-    
     res.status(201).json(newResume);
   } catch (error) {
     console.error(error);
@@ -42,10 +34,7 @@ exports.uploadResume = async (req, res) => {
 // Get all resumes
 exports.getResumes = async (req, res) => {
   try {
-    const resumes = await Resume.find()
-      .sort({ uploadedAt: -1 })
-      .populate({ path: "jobId", select: "title company _id" });
-
+    const resumes = await Resume.find({ userId: req.user.id }).sort({ uploadedAt: -1 });;  
     res.status(200).json(resumes);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -57,7 +46,9 @@ exports.deleteResume = async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
     if (!resume) return res.status(404).json({ message: "Resume not found" });
-
+    if (resume.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized to delete this resume" });
+    }
     // Delete from Cloudinary
     await cloudinary.uploader.destroy(resume.cloudinaryId, {
       resource_type: "auto",
@@ -71,42 +62,4 @@ exports.deleteResume = async (req, res) => {
   }
 };
 
-// Update Resume (Edit)
-exports.updateResume = async (req, res) => {
-  try {
-    const { name, type, jobId } = req.body;
-    const resume = await Resume.findById(req.params.id);
-    if (!resume) return res.status(404).json({ message: "Resume not found" });
-
-    // Update fields if provided
-    if (name) resume.name = name;
-    if (type) resume.type = type;
-    if (jobId) resume.jobId = jobId;
-
-    // If a new file is uploaded, replace old file
-    if (req.files && req.files.resume) {
-      // Delete old file from Cloudinary
-      await cloudinary.uploader.destroy(resume.cloudinaryId, {
-        resource_type: "auto",
-      });
-
-      // Upload new file
-      const file = req.files.resume;
-      const result = await cloudinary.uploader.upload(file.tempFilePath, {
-        resource_type: "auto",
-        folder: "resumes",
-      });
-
-      resume.fileUrl = result.secure_url;
-      resume.cloudinaryId = result.public_id;
-    }
-    await resume.save();
-
-    // Populate job info
-    await resume.populate({ path: "jobId", select: "title company _id" });
-    res.status(200).json(resume);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Update failed", error: error.message });
-  }
-};
+// edit resume

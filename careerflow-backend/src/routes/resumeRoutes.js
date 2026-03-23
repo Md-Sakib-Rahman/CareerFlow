@@ -7,6 +7,8 @@ const cloudinary = require("../config/cloudinary");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+const { protect } = require("../middleware/authMiddleware.js");
+
 const uploadToCloudinary = (file) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -21,10 +23,15 @@ const uploadToCloudinary = (file) => {
 };
 
 /* Upload Resume */
-router.post("/add", upload.single("resume"), async (req, res) => {
+router.post("/add", protect, upload.single("resume"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const extractedUserId = req.user?.id || req.user?._id || req.userId;
+    console.log("The User ID trying to upload is:", extractedUserId);
 
+    if (!extractedUserId) {
+        return res.status(400).json({ message: "Could not extract User ID from token. Check your verifyToken middleware." });
+    }
     const result = await uploadToCloudinary(req.file);
     const resume = new Resume({
       name: req.file.originalname,
@@ -32,6 +39,7 @@ router.post("/add", upload.single("resume"), async (req, res) => {
       fileUrl: result.secure_url,
       cloudinaryId: result.public_id,
       jobId: req.body.jobId === "General" ? null : req.body.jobId,
+      userId: extractedUserId,
     });
 
     await resume.save();
@@ -73,9 +81,13 @@ router.patch("/:id", upload.single("resume"), async (req, res) => {
 });
 
 /* Get All Resumes */
-router.get("/", async (req, res) => {
+router.get("/", protect,  async (req, res) => {
   try {
-    const resumes = await Resume.find()
+    const extractedUserId = req.user?.id || req.user?._id || req.userId;
+    if (!extractedUserId) {
+      return res.status(401).json({ message: "Unauthorized request" });
+    }
+    const resumes = await Resume.find({ userId: extractedUserId })
       .sort({ uploadedAt: -1 })
       .populate("jobId", "title company");
     res.json(resumes);
