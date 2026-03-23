@@ -1,5 +1,4 @@
 // const mongoose = require("mongoose");
-
 // const dbConnect = async () => {
 //   try {
 //     // No need for dotenv.config() here anymore
@@ -11,12 +10,12 @@
 //     process.exit(1);
 //   }
 // };
-
 // module.exports = dbConnect;
+
 const mongoose = require("mongoose");
 
 // Global cache variable to reuse the connection between Vercel function invocations
-let isConnected = false; 
+let isConnected = false;
 
 const connectDB = async () => {
   if (isConnected) {
