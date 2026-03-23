@@ -19,6 +19,7 @@ import ForgotPassword from "../Pages/Auth/ForgotPassword";
 // 1. ADDED YOUR ANALYTICS IMPORT BACK
 import Analytics from "../Components/Dashboard/Analytics/Analytics";
 import UpgradePage from "../Pages/UpgradePage/UpgradePage";
+import ResumeBuilder from "../Pages/Resume/ResumeBuilder";
 
 export const router = createBrowserRouter([
   {
@@ -91,6 +92,10 @@ export const router = createBrowserRouter([
         path: "/upgrade",
         element: <UpgradePage />,
       },
+      {
+        path: "/resume-builder",
+        element: <ResumeBuilder />
+      }
     ],
   },
 ]);

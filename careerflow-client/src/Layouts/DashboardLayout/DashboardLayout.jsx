@@ -15,6 +15,7 @@ import {
   PanelLeftOpen,
   ClipboardList,
   ChartNoAxesCombined,
+  FileText,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { logout, fetchMe } from "../../Redux/auth/authSlice";
@@ -51,12 +52,17 @@ const DashboardLayout = () => {
       icon: <Briefcase size={22} />,
     },
     { name: "Boards", path: "/boards", icon: <ClipboardList size={22} /> },
+    {
+      name: "Resume Builder",
+      path: "/resume-builder",
+      icon: <FileText size={22} />,
+    },
     { name: "Profile", path: "/profile", icon: <User size={22} /> },
     {
       name: "Analytics",
       path: "/analytics",
       icon: <ChartNoAxesCombined size={22} />,
-    },
+    }
   ];
 
   return (
@@ -109,10 +115,9 @@ const DashboardLayout = () => {
                   className={({ isActive }) => `
                     flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 font-medium group relative overflow-hidden
                     ${isCollapsed ? "md:justify-center" : "justify-start"}
-                    ${
-                      isActive
-                        ? "text-primary bg-primary/10 font-bold shadow-sm border border-primary/20"
-                        : "text-base-content/60 hover:bg-base-200 hover:text-base-content border border-transparent"
+                    ${isActive
+                      ? "text-primary bg-primary/10 font-bold shadow-sm border border-primary/20"
+                      : "text-base-content/60 hover:bg-base-200 hover:text-base-content border border-transparent"
                     }
                   `}
                 >

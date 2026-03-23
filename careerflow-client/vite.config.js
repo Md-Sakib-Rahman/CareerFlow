@@ -5,9 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
-      "Cross-Origin-Embedder-Policy": "credentialless",
-    },
+    // headers: {
+    //   "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    //   "Cross-Origin-Embedder-Policy": "credentialless",
+    // },
   },
 })
