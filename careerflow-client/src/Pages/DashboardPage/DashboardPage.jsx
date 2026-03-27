@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-// 1. STRIPE IMPORTS: Routing hooks and toast for payment redirects
+//  STRIPE IMPORTS: Routing hooks and toast for payment redirects
 import { useSearchParams, useNavigate, useLocation } from "react-router"; 
 import { toast } from "react-toastify";
 
 // Actions
 import { fetchMyBoards, fetchBoardJobs, clearModal, setActiveBoard } from "../../Redux/board/boardSlice";
-import { fetchMe } from "../../Redux/auth/authSlice"; // Added to refresh Pro status after payment
+import { fetchMe } from "../../Redux/auth/authSlice";  
 
 // Components
 import StatCards from "../../Components/Dashboard/StatCards/StatCards";
-import LoadingSpinner from "../../Components/Shared/LoadingSpinner/LoadingSpinner";
 import KanbanContainer from "../../Components/Dashboard/Kanban/KanbanContainer";
 
 // Modals
@@ -19,7 +18,22 @@ import AddJobModal from "../../Components/Dashboard/AddJobModal/AddJobModal";
 import EditJobModal from "../../Components/Dashboard/EditJobModal/EditJobModal";
 import ViewJobModal from "../../Components/Dashboard/ViewJobModal/ViewJobModal";
 import SetReminderModal from "../../Components/Dashboard/SetReminderModal/SetReminderModal";
-import NotePadModal from "../../Components/Dashboard/NotePadModal/NotePadModal"; // New Note Pad Modal
+import NotePadModal from "../../Components/Dashboard/NotePadModal/NotePadModal"; 
+
+const KanbanSkeleton = () => (
+  <div className="flex gap-4 h-full w-full overflow-hidden opacity-60 mt-6">
+    {[1, 2, 3, 4].map((col) => (
+      <div key={col} className="w-80 flex-shrink-0 bg-base-200/50 rounded-2xl p-4 flex flex-col gap-3">
+        {/* Column Header Skeleton */}
+        <div className="h-6 w-32 bg-base-300 animate-pulse rounded-md mb-2"></div>
+        {/* Job Card Skeletons */}
+        {[1, 2, 3].map((card) => (
+          <div key={card} className="h-28 w-full bg-base-100 animate-pulse rounded-xl border border-base-300"></div>
+        ))}
+      </div>
+    ))}
+  </div>
+);
 
 const DashboardPage = () => {
   const dispatch = useDispatch();
@@ -59,14 +73,14 @@ const DashboardPage = () => {
   // ==========================================
   useEffect(() => {
     setIsInitializing(true);
-    // 1. Always fetch fresh boards when Dashboard mounts
+    //  Always fetch fresh boards when Dashboard mounts
     dispatch(fetchMyBoards()).unwrap().then((response) => {
       const allBoards = response?.data || response || [];
       
-      // 2. Find the primary board (or fallback to the first one)
+      //  Find the primary board (or fallback to the first one)
       const primaryBoard = allBoards.find((b) => b.isPrimary === true) || allBoards[0];
       
-      // 3. Force Redux to forget the last viewed board and switch to the primary one
+      //  Force Redux to forget the last viewed board and switch to the primary one
       if (primaryBoard) {
         dispatch(setActiveBoard(primaryBoard));
       }
@@ -82,8 +96,6 @@ const DashboardPage = () => {
     }
   }, [activeBoard, dispatch]);
 
-  if (isInitializing || (loading && !activeBoard)) return <LoadingSpinner />;
-
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-full flex flex-col">
       
@@ -92,7 +104,6 @@ const DashboardPage = () => {
         <div>
           <h1 className="text-3xl font-bold text-base-content tracking-tight mb-2">
             Welcome back,{" "}
-            {/* Fixed the split array render bug by adding [0] */}
             <span className="text-primary">{user?.name?.split(" ")[0]}</span> 👋
           </h1>
           <p className="text-base-content/70">
@@ -110,35 +121,38 @@ const DashboardPage = () => {
       {/* Analytics Summary */}
       <StatCards />
 
-      {/* The Kanban Container */}
-      <KanbanContainer />
+      {isInitializing || (loading && !activeBoard?.columns) ? (
+        <KanbanSkeleton />
+      ) : (
+        <KanbanContainer />
+      )}
 
       {/* ==========================================
           GLOBAL MODALS (Controlled via Redux UI)
           ========================================== */}
       
-      {/* 1. Add Job */}
+      {/* Add Job */}
       <AddJobModal 
         isOpen={isAddJobOpen} 
         onClose={() => setIsAddJobOpen(false)} 
         activeBoard={activeBoard} 
       />
 
-      {/* 2. View Modal */}
+      {/*  View Modal */}
       {activeModal === "view" && (
         <ViewJobModal job={selectedJob} onClose={() => dispatch(clearModal())} />
       )}
 
-      {/* 3. Edit Modal */}
+      {/* Edit Modal */}
       {activeModal === "edit" && (
         <EditJobModal job={selectedJob} onClose={() => dispatch(clearModal())} />
       )}
 
-      {/* 4. Reminder Modal */}
+      {/*  Reminder Modal */}
       {activeModal === "reminder" && (
         <SetReminderModal job={selectedJob} onClose={() => dispatch(clearModal())} />
       )}
-      {/* 5. Note Pad Modal */}
+      {/* Note Pad Modal */}
       {activeModal === "notePad" && (
         <NotePadModal 
           job={selectedJob} 
