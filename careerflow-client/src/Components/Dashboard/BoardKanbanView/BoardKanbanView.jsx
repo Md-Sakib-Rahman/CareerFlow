@@ -2,9 +2,36 @@ import React, { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import KanbanContainer from "../../../Components/Dashboard/Kanban/KanbanContainer";
 import AddJobModal from "../../../Components/Dashboard/AddJobModal/AddJobModal";
+import { useDispatch, useSelector } from "react-redux";
+import { clearModal } from "../../../Redux/board/boardSlice";
+import ViewJobModal from "../ViewJobModal/ViewJobModal";
+import EditJobModal from "../EditJobModal/EditJobModal";
+import SetReminderModal from "../SetReminderModal/SetReminderModal";
+import NotePadModal from "../NotePadModal/NotePadModal";
+
+// ⚠️ NEW: A custom skeleton loader that mimics your Kanban columns
+const KanbanSkeleton = () => (
+  <div className="flex gap-4 h-full w-full overflow-hidden opacity-60">
+    {[1, 2, 3, 4].map((col) => (
+      <div key={col} className="w-80 flex-shrink-0 bg-base-200/50 rounded-2xl p-4 flex flex-col gap-3">
+        {/* Column Header Skeleton */}
+        <div className="h-6 w-32 bg-base-300 animate-pulse rounded-md mb-2"></div>
+        {/* Job Card Skeletons */}
+        {[1, 2, 3].map((card) => (
+          <div key={card} className="h-28 w-full bg-base-100 animate-pulse rounded-xl border border-base-300"></div>
+        ))}
+      </div>
+    ))}
+  </div>
+);
 
 const BoardKanbanView = ({ activeBoard, onBack }) => {
   const [isAddJobOpen, setIsAddJobOpen] = useState(false);
+  const dispatch = useDispatch();
+  
+  // ⚠️ NEW: Grab the loading state from your board slice
+  const { loading } = useSelector((state) => state.board);
+  const { activeModal, selectedJob } = useSelector((state) => state.board.ui);
 
   if (!activeBoard) return null;
 
@@ -36,8 +63,8 @@ const BoardKanbanView = ({ activeBoard, onBack }) => {
         </button>
       </div>
 
-      {/* The reusable Kanban Container */}
-      <KanbanContainer />
+      {/* ⚠️ NEW: Conditionally render the Skeleton while loading, then swap to the real Kanban */}
+      {loading ? <KanbanSkeleton /> : <KanbanContainer />}
 
       {/* Modals scoped to this view */}
       <AddJobModal 
@@ -45,6 +72,29 @@ const BoardKanbanView = ({ activeBoard, onBack }) => {
         onClose={() => setIsAddJobOpen(false)} 
         activeBoard={activeBoard} 
       />
+
+      {/* View Modal */}
+      {activeModal === "view" && (
+        <ViewJobModal job={selectedJob} onClose={() => dispatch(clearModal())} />
+      )}
+
+      {/* Edit Modal */}
+      {activeModal === "edit" && (
+        <EditJobModal job={selectedJob} onClose={() => dispatch(clearModal())} />
+      )}
+
+      {/* Reminder Modal */}
+      {activeModal === "reminder" && (
+        <SetReminderModal job={selectedJob} onClose={() => dispatch(clearModal())} />
+      )}
+
+      {/* Note Pad Modal */}
+      {activeModal === "notePad" && (
+        <NotePadModal 
+          job={selectedJob} 
+          onClose={() => dispatch(clearModal())} 
+        />
+      )}
     </div>
   );
 };
