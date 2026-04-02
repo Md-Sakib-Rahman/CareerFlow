@@ -53,7 +53,7 @@ const Login = () => {
                 type="email"
                 {...register("email", { required: "Email is required" })}
                 placeholder="Email ID"
-                className="bg-transparent outline-none w-full placeholder-base-content/50 dark:placeholder-white/50"
+                className="bg-transparent outline-none w-full placeholder-base-content/50 "
               />
             </div>
             {errors.email && <p className="text-error text-[10px] mt-1">{errors.email.message}</p>}
@@ -67,7 +67,7 @@ const Login = () => {
                 type="password"
                 {...register("password", { required: "Password is required" })}
                 placeholder="Password"
-                className="bg-transparent outline-none w-full placeholder-base-content/50 dark:placeholder-white/50"
+                className="bg-transparent outline-none w-full placeholder-base-content/50  "
               />
             </div>
             {errors.password && <p className="text-error text-[10px] mt-1">{errors.password.message}</p>}

@@ -1,6 +1,6 @@
 import { Twitter, Linkedin, Instagram, MessageCircle } from "lucide-react";
 import { Link } from "react-router";
-
+import Logo from "../../../assets/CFLogo.png"
 export default function Footer() {
   return (
     // Replaced hardcoded dark gradient with theme-aware base color
@@ -14,8 +14,8 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               {/* Logo uses theme primary color */}
-              <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary text-primary-content font-bold text-lg shadow-md">
-                🎁
+              <div className="w-10 h-10 flex items-center justify-center rounded-lg  text-primary-content font-bold text-lg shadow-md">
+                <img src={Logo} alt="CareerFlow Logo" />
               </div>
               <h2 className="text-xl font-semibold text-base-content">
                 CareerFlow

@@ -1,6 +1,21 @@
+import React from "react";
 import { Check, Sparkles, Crown, Zap } from "lucide-react";
+import { useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 
 export default function PricingSection() {
+  const navigate = useNavigate();
+  // Pull auth state to check if the user is logged in
+  const { user } = useSelector((state) => state.auth);
+
+  const handleCtaClick = () => {
+    if (user) {
+      navigate("/upgrade");
+    } else {
+      navigate("/login");
+    }
+  };
+
   return (
     // Section background: Light (Soft Gray) / Dark (Professional Zinc)
     <section className="bg-base-200/30 py-24 transition-colors duration-300">
@@ -49,20 +64,24 @@ export default function PricingSection() {
             </div>
 
             {/* Uses Theme-Aware Outline Button */}
-            <button className="btn btn-outline w-full h-12  rounded-box">
+            <button 
+              onClick={handleCtaClick}
+              className="btn btn-outline w-full h-12 rounded-box"
+            >
               Get Started Free
             </button>
 
             <ul className="mt-6 space-y-3 text-sm text-base-content/70">
               {[
-                "Track up to 10 active applications",
+                "Track up to 20 active applications",
                 "Access to 1 Kanban Board",
-                "Basic job details",
+                "No Resume Vault access",
+                "No AI Pipeline Insights",
                 "Standard Email Support",
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
-                  <Check size={16} className="text-primary mt-1" />
-                  {item}
+                  <Check size={16} className="text-primary mt-1 flex-shrink-0" />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -89,7 +108,10 @@ export default function PricingSection() {
             </div>
 
             {/* Uses your Modular btn-primary (Perfect-Match Gradient) */}
-            <button className="btn btn-primary w-full h-12 rounded-box text-lg">
+            <button 
+              onClick={handleCtaClick}
+              className="btn btn-primary w-full h-12 rounded-box text-lg"
+            >
               Purchase Pro
             </button>
 
@@ -97,14 +119,13 @@ export default function PricingSection() {
               {[
                 "Everything in Starter, plus:",
                 "Unlimited job applications",
-                "Task Management & Checklists",
-                "Status Reminders",
-                "Document Storage",
-                "Basic Analytics",
+                "Access up to 10 Kanban Boards",
+                "Store up to 30 PDF Resumes",
+                "Gemini AI Pipeline Insights",
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
-                  <Check size={16} className="text-primary mt-1" />
-                  {item}
+                  <Check size={16} className="text-primary mt-1 flex-shrink-0" />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -130,22 +151,24 @@ export default function PricingSection() {
               <span className="text-base-content/50 ml-2">per month</span>
             </div>
 
-            <button className="btn btn-outline w-full h-12 rounded-box">
+            <button 
+              onClick={handleCtaClick}
+              className="btn btn-outline w-full h-12 rounded-box"
+            >
               Purchase Elite
             </button>
 
             <ul className="mt-6 space-y-3 text-sm text-base-content/70">
               {[
                 "Everything in Pro, plus:",
-                "Multiple Boards",
-                "Data Export",
+                "Unlimited Kanban Boards",
+                "Store up to 100 PDF Resumes",
                 "Advanced Funnel Analytics",
                 "Priority Support",
-                "Custom Tags",
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
-                  <Check size={16} className="text-primary mt-1" />
-                  {item}
+                  <Check size={16} className="text-primary mt-1 flex-shrink-0" />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
