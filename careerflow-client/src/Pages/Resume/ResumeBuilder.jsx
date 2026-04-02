@@ -8,14 +8,23 @@ import {
   X,
   Edit,
   Filter,
+  Crown ,
+  AlertTriangle 
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAllUserJobs } from "../../Redux/board/boardSlice";
+import { useNavigate } from "react-router";  
 import toast, { Toaster } from "react-hot-toast";
 
 const ResumeBuilder = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const { allJobs } = useSelector((state) => state.board);
+  // ⚠️ NEW: Pull the user to check their subscription plan
+  const { user } = useSelector((state) => state.auth);
+  const token = useSelector((state) => state.auth.accessToken) || localStorage.getItem("accessToken");
+
   const [resumes, setResumes] = useState([]);
   const [file, setFile] = useState(null);
   const [selectedJob, setSelectedJob] = useState("General");
@@ -27,17 +36,27 @@ const ResumeBuilder = () => {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [timeFilter, setTimeFilter] = useState("All");
   const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/resume`;
-  const token = useSelector((state) => state.auth.accessToken) || localStorage.getItem("accessToken");  
+
+  // ==========================================
+  // ⚠️ PAYWALL CAPACITIES
+  // ==========================================
+  const isStarter = user?.plan === "starter";
+  const resumeLimit = user?.plan === "executive" ? 100 : user?.plan === "pro" ? 30 : 0;
+  const isLimitReached = resumes.length >= resumeLimit;
+
   useEffect(() => {
-    dispatch(fetchAllUserJobs());
-    fetchResumes();
-  }, [dispatch]);
+    // Only fetch data if they are legally allowed to see the page
+    if (!isStarter) {
+      dispatch(fetchAllUserJobs());
+      fetchResumes();
+    }
+  }, [dispatch, isStarter]);
 
   const fetchResumes = async () => {
     try {
       const res = await fetch(API_URL, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) throw new Error("Failed to fetch resumes");
       const data = await res.json();
       setResumes(data);
@@ -77,7 +96,12 @@ const ResumeBuilder = () => {
         : `${API_URL}/add`;
       const method = editingResume ? "PATCH" : "POST";
 
-      const res = await fetch(endpoint, { method, body: formData, credentials: "include", headers: { Authorization: `Bearer ${token}` } } );
+      const res = await fetch(endpoint, {
+        method,
+        body: formData,
+        credentials: "include",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!res.ok) {
         const errorData = await res.json();
@@ -109,22 +133,47 @@ const ResumeBuilder = () => {
     setEditingResume(null);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this resume?")) return;
+  // const handleDelete = async (id) => {
+  //   if (!window.confirm("Delete this resume?")) return;
+  //   try {
+  //     const res = await fetch(`${API_URL}/${id}`, {
+  //       method: "DELETE",
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     });
+  //     if (res.ok) {
+  //       setResumes((prev) => prev.filter((r) => r._id !== id));
+  //       if (preview?.includes(id)) setPreview(null);
+  //       toast.success("Resume deleted successfully!");
+  //     } else {
+  //       throw new Error();
+  //     }
+  //   } catch {
+  //     toast.error("Delete failed");
+  //   }
+  // };
+
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
+    
     try {
-      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/${deleteConfirmId}`, {
+        method: "DELETE",
+        credentials: "include",  
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
-        setResumes((prev) => prev.filter((r) => r._id !== id));
-        if (preview?.includes(id)) setPreview(null);
+        setResumes((prev) => prev.filter((r) => r._id !== deleteConfirmId));
+        if (preview?.includes(deleteConfirmId)) setPreview(null);
         toast.success("Resume deleted successfully!");
       } else {
         throw new Error();
       }
     } catch {
       toast.error("Delete failed");
+    } finally {
+      setDeleteConfirmId(null);  
     }
   };
-
   const downloadPDF = async (url, filename) => {
     try {
       const response = await fetch(url);
@@ -147,6 +196,28 @@ const ResumeBuilder = () => {
     setSelectedJob(resume.jobId?._id || resume.jobId || "General");
     setModal(true);
   };
+
+  // ==========================================
+  // ⚠️ HARD PAYWALL RENDER FOR STARTER PLAN
+  // ==========================================
+  if (isStarter) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
+        <div className="bg-primary/10 p-6 rounded-full mb-6">
+          <Crown size={64} className="text-primary" />
+        </div>
+        <h2 className="text-4xl font-bold mb-4 text-base-content">
+          Resume Vault is a Pro Feature
+        </h2>
+        <p className="text-base-content/70 mb-8 max-w-md text-lg">
+          Securely store, organize, and preview up to 30 tailored PDF resumes directly inside CareerFlow. 
+        </p>
+        <button onClick={() => navigate("/upgrade")} className="btn btn-primary btn-lg shadow-xl shadow-primary/20">
+          Upgrade to Pro
+        </button>
+      </div>
+    );
+  }
 
   const filtered = resumes.filter((r) => {
     const matchesSearch = r.name?.toLowerCase().includes(search.toLowerCase());
@@ -179,17 +250,26 @@ const ResumeBuilder = () => {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
+        <h1 className="text-3xl font-bold flex items-center gap-3">
           <FileText className="text-primary" /> Resume Vault
+          {/* ⚠️ NEW: Visual Counter for Storage Limits */}
+          <span className={`text-sm font-medium px-3 py-1 rounded-full border ${isLimitReached ? "bg-error/10 text-error border-error/20" : "bg-base-200 text-base-content/60 border-base-300"}`}>
+            {resumes.length} / {resumeLimit} Used
+          </span>
         </h1>
         <button
           onClick={() => {
-            setEditingResume(null);
-            setModal(true);
+            if (isLimitReached) {
+              toast.error(`Limit reached! Upgrade to Executive for more storage.`, { icon: '🔒' });
+            } else {
+              setEditingResume(null);
+              setModal(true);
+            }
           }}
-          className="btn btn-primary flex items-center gap-2"
+          disabled={isLimitReached}
+          className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
         >
-          <Upload size={18} /> Upload New
+          <Upload size={18} /> {isLimitReached ? "Vault Full" : "Upload New"}
         </button>
       </div>
 
@@ -240,8 +320,13 @@ const ResumeBuilder = () => {
         {/* Preview */}
         <div className="col-span-12 lg:col-span-8 border rounded-2xl h-[650px] bg-base-200 shadow-sm overflow-hidden relative">
           {preview ? (
-            <iframe src={`https://docs.google.com/gview?url=${encodeURIComponent(preview)}&embedded=true`} className="w-full h-full" title="Resume Preview" />
-            
+            <iframe
+              src={`https://docs.google.com/gview?url=${encodeURIComponent(
+                preview
+              )}&embedded=true`}
+              className="w-full h-full"
+              title="Resume Preview"
+            />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
               <FileText size={48} className="mb-2 opacity-20" />
@@ -259,7 +344,11 @@ const ResumeBuilder = () => {
             filtered.map((r) => (
               <div
                 key={r._id}
-                className={`group border p-3 rounded-xl flex justify-between items-center transition-all bg-base-200 hover:border-primary shadow-sm ${preview === r.fileUrl ? "border-primary ring-1 ring-primary" : ""}`}
+                className={`group border p-3 rounded-xl flex justify-between items-center transition-all bg-base-200 hover:border-primary shadow-sm ${
+                  preview === r.fileUrl
+                    ? "border-primary ring-1 ring-primary"
+                    : ""
+                }`}
               >
                 <div
                   onClick={() => setPreview(r.fileUrl)}
@@ -287,7 +376,8 @@ const ResumeBuilder = () => {
                     <Download size={16} />
                   </button>
                   <button
-                    onClick={() => handleDelete(r._id)}
+                    // onClick={() => handleDelete(r._id)}
+                    onClick={() => setDeleteConfirmId(r._id)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-base-100 rounded-lg transition-colors"
                   >
                     <Trash2 size={16} />
@@ -375,8 +465,37 @@ const ResumeBuilder = () => {
                 {uploading
                   ? "Processing..."
                   : editingResume
-                    ? "Save Changes"
-                    : "Start Upload"}
+                  ? "Save Changes"
+                  : "Start Upload"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-base-100 p-8 rounded-2xl w-full max-w-sm shadow-2xl border border-base-300 text-center transform transition-all">
+            <div className="mx-auto w-16 h-16 bg-error/10 text-error flex items-center justify-center rounded-full mb-6">
+              <AlertTriangle size={32} />
+            </div>
+            
+            <h3 className="text-xl font-bold mb-2 text-base-content">Delete Resume?</h3>
+            <p className="text-sm text-base-content/70 mb-8">
+              Are you sure you want to permanently delete this resume? This action cannot be undone.
+            </p>
+            
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDelete}
+                className="btn btn-error flex-1 shadow-lg shadow-error/20"
+              >
+                Yes, Delete
               </button>
             </div>
           </div>
