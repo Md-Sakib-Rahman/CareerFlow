@@ -28,6 +28,9 @@ const { generateEmailHtml } = require("./utils/emailTemplates");
 
 const app = express();
 
+// One proxy hop (Vercel) so req.ip is the real client address.
+app.set("trust proxy", 1);
+
 // ==========================
 // CORS CONFIG
 // ==========================

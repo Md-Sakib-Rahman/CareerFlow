@@ -468,10 +468,12 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
 
+    // Same generic answer whether or not the account exists (no enumeration).
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(200).json({
+        success: true,
+        message: "If an account with that email exists, a reset link has been sent."
+      });
     }
 
     const resetToken = crypto.randomBytes(20).toString("hex");
@@ -527,18 +529,10 @@ const forgotPassword = async (req, res) => {
     };
     await transporter.sendMail(mailOptions);
     
-    if (process.env.NODE_ENV === "development") {
-      return res.status(200).json({
-        success: true,
-        message: "Email sent. (DEV MODE: URL included below)",
-        resetUrl: resetUrl
-      });
-    } else {
-      return res.status(200).json({
-        success: true,
-        message: "If an account with that email exists, a reset link has been sent."
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      message: "If an account with that email exists, a reset link has been sent."
+    });
   } catch (err) {
     res
       .status(500)

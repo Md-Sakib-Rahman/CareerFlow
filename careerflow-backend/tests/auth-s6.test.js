@@ -68,7 +68,10 @@ test("S6: 5 wrong OTPs, then the correct OTP is rejected", async () => {
 
 test("S6: OTP is 6 digits", async () => {
   for (let i = 0; i < 20; i++) {
-    const res = await request(app).post("/auth/send-otp").send({ email: `a${i}@example.com` });
+    const res = await request(app)
+      .post("/auth/send-otp")
+      .set("x-forwarded-for", `10.0.0.${i}`) // distinct IPs: this test is not about the S7 limit
+      .send({ email: `a${i}@example.com` });
     expect(res.status).toBe(200);
     const doc = await Otp.findOne({ email: `a${i}@example.com` });
     expect(doc.otp).toMatch(/^\d{6}$/);
@@ -78,11 +81,13 @@ test("S6: OTP is 6 digits", async () => {
 test("S6: 10 parallel wrong guesses -> at most 5 evaluated, then correct OTP rejected", async () => {
   await Otp.create({ email: "new@example.com", otp: "123456" });
   const results = await Promise.all(
-    Array.from({ length: 10 }, () => request(app).post("/auth/register").send(regBody({ otp: "000000" })))
+    Array.from({ length: 10 }, (_, i) =>
+      request(app).post("/auth/register").set("x-forwarded-for", `10.0.1.${i}`).send(regBody({ otp: "000000" })),
+    ),
   );
   expect(results.every((r) => r.status === 400)).toBe(true);
   expect((await Otp.findOne({ email: "new@example.com" })).attempts).toBe(5);
-  const res = await request(app).post("/auth/register").send(regBody());
+  const res = await request(app).post("/auth/register").set("x-forwarded-for", "10.0.1.99").send(regBody());
   expect(res.status).toBe(400);
   expect(await User.countDocuments()).toBe(0);
 });
