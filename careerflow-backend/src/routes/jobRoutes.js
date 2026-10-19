@@ -9,9 +9,12 @@ const {
 
 } = require("../controllers/jobsController");
 const { protect } = require("../middleware/authMiddleware");
+const { validateObjectIdParam } = require("../middleware/validateObjectId");
 
 // All job routes require authentication
 router.use(protect);
+router.param("id", validateObjectIdParam);
+router.param("boardId", validateObjectIdParam);
 
 // Main job creation
 // router.route("/")

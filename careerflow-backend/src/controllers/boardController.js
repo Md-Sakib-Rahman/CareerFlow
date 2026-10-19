@@ -122,17 +122,46 @@ const updateBoardColumns = async (req, res) => {
     const board = await Board.findOne({ _id: boardId, userId: req.user.id });
     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
 
+    // 0. INPUT VALIDATION
+    const validStatuses = Board.schema.path("columns").schema.path("internalStatus").enumValues;
+    if (
+      !Array.isArray(columns) || columns.length === 0 ||
+      columns.some(col => !col || typeof col.title !== "string" || !col.title.trim() ||
+        !validStatuses.includes(col.internalStatus))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "columns must be a non-empty array of items with a title and a valid internalStatus."
+      });
+    }
+
+    const existingById = new Map(board.columns.map(col => [col._id.toString(), col]));
+    if (columns.some(col => col._id && !existingById.has(col._id.toString()))) {
+      return res.status(400).json({ success: false, message: "Unknown column id." });
+    }
+
+    const retypedIds = columns
+      .filter(col => col._id && existingById.get(col._id.toString()).internalStatus !== col.internalStatus)
+      .map(col => col._id.toString());
+    if (retypedIds.length > 0 && await Job.exists({ columnId: { $in: retypedIds } })) {
+      return res.status(400).json({
+        success: false,
+        message: "Move the jobs out of a column before changing its type."
+      });
+    }
+
     // 1. HIERARCHY DEFINITION (Weight-based)
     const hierarchyOrder = {
       wishlist: 1,
       applied: 2,
       interviewing: 3,
       offer: 4,
-      rejected: 5
+      rejected: 5,
+      archived: 6 // not a required funnel type; always sorts last
     };
 
     // 2. TYPE INTEGRITY CHECK (Must have at least one of each)
-    const requiredTypes = Object.keys(hierarchyOrder);
+    const requiredTypes = Object.keys(hierarchyOrder).filter(type => type !== "archived");
     const incomingTypes = columns.map(col => col.internalStatus);
     const missingTypes = requiredTypes.filter(type => !incomingTypes.includes(type));
 

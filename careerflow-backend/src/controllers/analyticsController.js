@@ -4,11 +4,16 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const InsightCache = require("../models/InsightCache");
 const { countGhosted } = require("../utils/ghosted");
+const { isObjectId } = require("../middleware/validateObjectId");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const getAnalytics = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const { boardId } = req.query;
+
+    if (boardId && boardId !== "all" && !isObjectId(boardId)) {
+      return res.status(400).json({ success: false, message: "Invalid boardId" });
+    }
 
     // 1. Concurrent Fetch: Get Board List while preparing Aggregation
     const boardsListTask = Board.find({ userId }).select("name _id").lean();

@@ -8,9 +8,11 @@ const {
   setPrimaryBoard
 } = require("../controllers/boardController");
 const { protect } = require("../middleware/authMiddleware");
+const { validateObjectIdParam } = require("../middleware/validateObjectId");
 
 // All board routes require authentication  
 router.use(protect);
+router.param("id", validateObjectIdParam);
 
 // Main board endpoints
 router.route("/")

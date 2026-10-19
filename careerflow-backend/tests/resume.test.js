@@ -161,3 +161,68 @@ describe("S4: resume jobId ownership", () => {
     expect((await Resume.findById(r._id)).jobId).toBeNull();
   });
 });
+
+describe("L19: resume upload/save/delete ordering", () => {
+  const okUpload = () =>
+    cloudinary.uploader.upload_stream.mockImplementation((opts, cb) => {
+      cb(null, { secure_url: "http://f.invalid/new", public_id: "resumes/new" });
+      return new Writable({ write: (c, e, done) => done() });
+    });
+  const failUpload = () =>
+    cloudinary.uploader.upload_stream.mockImplementation((opts, cb) => {
+      cb(new Error("upload failed"));
+      return new Writable({ write: (c, e, done) => done() });
+    });
+  const patchFile = (id) =>
+    request(app)
+      .patch(`/api/resume/${id}`)
+      .set("Authorization", `Bearer ${tokenA}`)
+      .attach("resume", Buffer.from("pdf"), "new.pdf");
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test("PATCH: failed new upload leaves old asset and record untouched", async () => {
+    failUpload();
+    const r = await makeResume(userA._id);
+    const res = await patchFile(r._id);
+    expect(res.status).toBe(500);
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+    const after = await Resume.findById(r._id);
+    expect(after.cloudinaryId).toBe("resumes/cv");
+    expect(after.name).toBe("cv.pdf");
+  });
+
+  test("PATCH: failed save removes the new asset, keeps the old one", async () => {
+    okUpload();
+    const r = await makeResume(userA._id);
+    jest.spyOn(Resume.prototype, "save").mockRejectedValueOnce(new Error("save failed"));
+    const res = await patchFile(r._id);
+    expect(res.status).toBe(500);
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledTimes(1);
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("resumes/new", { resource_type: "raw" });
+    expect((await Resume.findById(r._id)).cloudinaryId).toBe("resumes/cv");
+  });
+
+  test("PATCH: success uploads, saves, then destroys the old asset", async () => {
+    okUpload();
+    const r = await makeResume(userA._id);
+    const res = await patchFile(r._id);
+    expect(res.status).toBe(200);
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledTimes(1);
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("resumes/cv", { resource_type: "raw" });
+    expect((await Resume.findById(r._id)).cloudinaryId).toBe("resumes/new");
+  });
+
+  test("POST: failed save after upload removes the uploaded asset", async () => {
+    okUpload();
+    jest.spyOn(Resume.prototype, "save").mockRejectedValueOnce(new Error("save failed"));
+    const res = await request(app)
+      .post("/api/resume/add")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .field("jobId", "General")
+      .attach("resume", Buffer.from("pdf"), "cv.pdf");
+    expect(res.status).toBe(500);
+    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith("resumes/new", { resource_type: "raw" });
+    expect(await Resume.countDocuments()).toBe(0);
+  });
+});

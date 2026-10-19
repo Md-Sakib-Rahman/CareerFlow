@@ -10,6 +10,9 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 const { protect } = require("../middleware/authMiddleware.js");
+const { validateObjectIdParam } = require("../middleware/validateObjectId");
+
+router.param("id", validateObjectIdParam);
 
 const uploadToCloudinary = (file) => {
   return new Promise((resolve, reject) => {
@@ -53,7 +56,12 @@ router.post("/add", protect, upload.single("resume"), async (req, res) => {
       userId: extractedUserId,
     });
 
-    await resume.save();
+    try {
+      await resume.save();
+    } catch (saveError) {
+      await cloudinary.uploader.destroy(result.public_id, { resource_type: "raw" }).catch(() => {});
+      throw saveError;
+    }
     res.status(201).json(resume);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -72,18 +80,28 @@ router.patch("/:id", protect, upload.single("resume"), async (req, res) => {
     if (req.body.type) resume.type = req.body.type;
     if (req.body.jobId) resume.jobId = req.body.jobId === "General" ? null : req.body.jobId;
 
+    let oldCloudinaryId = null;
+    let newCloudinaryId = null;
     if (req.file) {
-      await cloudinary.uploader.destroy(resume.cloudinaryId, {
-        resource_type: "raw",
-      });
-
       const result = await uploadToCloudinary(req.file);
+      newCloudinaryId = result.public_id;
+      oldCloudinaryId = resume.cloudinaryId;
       resume.fileUrl = result.secure_url;
       resume.cloudinaryId = result.public_id;
       resume.name = req.file.originalname;
     }
 
-    await resume.save();
+    try {
+      await resume.save();
+    } catch (saveError) {
+      if (newCloudinaryId) {
+        await cloudinary.uploader.destroy(newCloudinaryId, { resource_type: "raw" }).catch(() => {});
+      }
+      throw saveError;
+    }
+    if (oldCloudinaryId) {
+      await cloudinary.uploader.destroy(oldCloudinaryId, { resource_type: "raw" }).catch(() => {});
+    }
     const updated = await Resume.findById(resume._id).populate(
       "jobId",
       "title company",

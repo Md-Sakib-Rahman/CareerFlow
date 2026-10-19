@@ -1,4 +1,5 @@
 const request = require("supertest");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { startDb, clearDb, stopDb } = require("./helpers/db");
 const app = require("../src/app");
@@ -87,5 +88,85 @@ describe("L8: deleteBoard cleans reminders and resume links", () => {
     expect((await Resume.findById(a.r._id)).jobId).toBeNull();
     expect(String((await Resume.findById(o.r._id)).jobId)).toBe(String(o.j._id));
     expect(await Job.countDocuments({ boardId: b1._id })).toBe(0);
+  });
+});
+
+describe("L15: PATCH /api/boards/:id/columns validation", () => {
+  const setup = async () => {
+    const user = await makeUser("pro");
+    const token = tokenFor(user);
+    const board = (await post(token, "b")).body.data;
+    const patch = (columns) =>
+      request(app).patch(`/api/boards/${board._id}/columns`).set("Authorization", `Bearer ${token}`).send({ columns });
+    const plain = board.columns.map((c) => ({ ...c }));
+    return { user, token, board, patch, plain };
+  };
+
+  test.each([
+    ["missing", undefined],
+    ["not an array", "nope"],
+    ["empty", []],
+  ])("columns %s -> 400", async (_n, value) => {
+    const { patch } = await setup();
+    expect((await patch(value)).status).toBe(400);
+  });
+
+  test("item without a string title -> 400", async () => {
+    const { patch, plain } = await setup();
+    expect((await patch([...plain, { title: 5, internalStatus: "applied" }])).status).toBe(400);
+    expect((await patch([...plain, { internalStatus: "applied" }])).status).toBe(400);
+  });
+
+  test("item with missing or invalid internalStatus -> 400", async () => {
+    const { patch, plain } = await setup();
+    expect((await patch([...plain, { title: "X", internalStatus: "bogus" }])).status).toBe(400);
+    expect((await patch([...plain, { title: "X" }])).status).toBe(400);
+  });
+
+  test("changing internalStatus of a column holding jobs -> 400; allowed when empty", async () => {
+    const { user, board, patch, plain } = await setup();
+    await Job.create({
+      userId: user._id, boardId: board._id, columnId: board.columns[1]._id, company: "A", title: "T",
+    });
+    const changed = plain.map((c) => ({ ...c }));
+    changed[1].internalStatus = "interviewing"; // column with a job
+    expect((await patch(changed)).status).toBe(400);
+
+    const emptyChange = plain.map((c) => ({ ...c }));
+    emptyChange[2].internalStatus = "applied"; // empty column; a new interviewing column keeps types complete
+    emptyChange.push({ title: "New", internalStatus: "interviewing" });
+    expect((await patch(emptyChange)).status).toBe(200);
+  });
+
+  test("unknown _id -> 400", async () => {
+    const { patch, plain } = await setup();
+    plain.push({ _id: String(new mongoose.Types.ObjectId()), title: "X", internalStatus: "applied" });
+    expect((await patch(plain)).status).toBe(400);
+  });
+
+  test("archived column is ordered last with clean positions", async () => {
+    const { patch, plain } = await setup();
+    const withArchived = [
+      { title: "Arch", internalStatus: "archived", position: 0 },
+      ...plain,
+    ];
+    const res = await patch(withArchived);
+    expect(res.status).toBe(200);
+    const cols = res.body.data.columns;
+    expect(cols.map((c) => c.internalStatus)).toEqual([
+      "wishlist", "applied", "interviewing", "offer", "rejected", "archived",
+    ]);
+    expect(cols.map((c) => c.position)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  test("client payload (existing columns + one new column without _id) -> 200", async () => {
+    const { patch, plain } = await setup();
+    const res = await patch([
+      ...plain,
+      { title: "Round 2", internalStatus: "interviewing", color: "#f59e0b", position: 5 },
+    ]);
+    expect(res.status).toBe(200);
+    expect(res.body.data.columns).toHaveLength(6);
+    expect(res.body.data.columns.map((c) => c.title)).toContain("Round 2");
   });
 });

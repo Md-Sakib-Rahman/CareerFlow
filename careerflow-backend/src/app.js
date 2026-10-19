@@ -22,6 +22,7 @@ const { handleStripeWebhook } = require("./controllers/paymentController");
 const Reminder = require("./models/Reminder");
 
 // Utils
+const errorHandler = require("./middleware/errorHandler");
 const { sendNotificationEmail } = require("./utils/email");
 const { generateEmailHtml } = require("./utils/emailTemplates");
 
@@ -256,6 +257,9 @@ app.get("/", (req, res) => {
     message: "Welcome to the CareerFlow API",
   });
 });
+
+// Error handling (must be registered last)
+app.use(errorHandler());
 
 // ==========================
 // EXPORT APP
