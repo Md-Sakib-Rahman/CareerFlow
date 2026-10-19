@@ -2,9 +2,11 @@
   "name": "careerflow-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "jest --silent --reporters=summary"
   },
   "keywords": [],
   "author": "",
@@ -22,8 +24,12 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.3.0",
     "multer": "^2.1.1",
-    "node-cron": "^4.2.1",
     "nodemailer": "^8.0.1",
     "stripe": "^20.4.0"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^10.4.3",
+    "supertest": "^7.3.1"
   }
 }

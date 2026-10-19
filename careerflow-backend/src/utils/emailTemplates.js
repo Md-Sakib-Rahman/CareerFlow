@@ -1,4 +1,16 @@
-const generateEmailHtml = (name, title, company, targetDate, type) => {
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const generateEmailHtml = (rawName, rawTitle, rawCompany, rawTargetDate, type) => {
+  const name = escapeHtml(rawName);
+  const title = escapeHtml(rawTitle);
+  const company = escapeHtml(rawCompany);
+  const targetDate = escapeHtml(rawTargetDate);
   let mainMessage = '';
   
   if (type === 'apply') {
@@ -25,7 +37,7 @@ const generateEmailHtml = (name, title, company, targetDate, type) => {
           </p>
           
           <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
-            <a href="https://career-flow-six.vercel.app" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+            <a href="${process.env.CLIENT_URL || 'https://career-flow-six.vercel.app'}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
               View My Agenda
             </a>
           </div>

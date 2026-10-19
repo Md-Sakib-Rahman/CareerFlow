@@ -4,11 +4,11 @@ dotenv.config();
 const app = require("./src/app");
 const dbConnect = require("./src/config/db");
 
-// Replace with your MongoDB URI in .env file
-const DB = process.env.MONGO_URL;
-
 // DATABASE CONNECTION
-dbConnect();
+dbConnect().catch((err) => {
+  console.error("Database connection failed:", err.message);
+  process.exit(1);
+});
 
 // START SERVER
 if (process.env.NODE_ENV !== "production") {
@@ -17,14 +17,3 @@ if (process.env.NODE_ENV !== "production") {
     console.log(`Server running on port ${PORT}`);
   });
 }
-
-// const dotenv = require("dotenv");
-// dotenv.config();
-
-// const app = require("./src/app");
-
-// const PORT = process.env.PORT || 8080;
-
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });

@@ -2,7 +2,8 @@
 **/node_modules/
 
 # Ignore environment variables (crucial for backend)
-**/.env
+**/.env*
+!**/.env.example
 
 # Ignore build folders
 frontend/dist/
@@ -11,3 +12,8 @@ frontend/build/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Build output, test coverage, Vercel
+**/dist/
+**/coverage/
+.vercel
