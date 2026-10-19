@@ -30,7 +30,7 @@ router.route("/:id")
   .delete(deleteJob); // DELETE /api/jobs/:id - Delete job & cascade delete standalone reminders
 
 
-router.route("/").get(protect, getAllUserJobs).post(protect, createJob);
+router.route("/").get(getAllUserJobs).post(createJob);
 
 
 module.exports = router;

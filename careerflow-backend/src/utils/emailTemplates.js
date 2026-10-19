@@ -37,7 +37,7 @@ const generateEmailHtml = (rawName, rawTitle, rawCompany, rawTargetDate, type) =
           </p>
           
           <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
-            <a href="https://career-flow-six.vercel.app" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+            <a href="${process.env.CLIENT_URL || 'https://career-flow-six.vercel.app'}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
               View My Agenda
             </a>
           </div>

@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/Otp");
-const nodemailer = require("nodemailer");
+const { createMailTransport } = require("../utils/email");
 const { OAuth2Client } = require('google-auth-library');
 const axios = require('axios');
 const mongoose = require("mongoose");
@@ -64,13 +64,7 @@ const sendRegistrationOTP = async (req, res) => {
     await Otp.deleteMany({ email });
     await Otp.create({ email, otp: otpCode });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const transporter = createMailTransport();
     const mailOptions = {
       from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -487,19 +481,14 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // ⚠️ NEW: Dynamically assign the URL based on the environment
-    const frontendUrl = process.env.NODE_ENV === "production" 
-      ? "https://career-flow-six.vercel.app" 
-      : "http://localhost:5173";
+    const frontendUrl = process.env.CLIENT_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://career-flow-six.vercel.app"
+        : "http://localhost:5173");
       
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const transporter = createMailTransport();
 
     const mailOptions = {
       from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,

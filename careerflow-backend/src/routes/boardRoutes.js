@@ -28,7 +28,7 @@ router.route("/:id/columns")
   .patch(updateBoardColumns); // PATCH /api/boards/:id/columns - Validate & update columns  
 
 
-router.patch("/:id/primary", protect, setPrimaryBoard);
+router.patch("/:id/primary", setPrimaryBoard);
 
 
 module.exports = router;

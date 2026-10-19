@@ -246,7 +246,7 @@ const updateJob = async (req, res) => {
         await Reminder.findOneAndUpdate(
           { jobId: job._id, type: reminderType },
           { userId, reminderDate: rDate, targetDate, leadDays: lead, isActive: true },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: "after" }
         );
       }
     }
@@ -306,12 +306,6 @@ const getAllUserJobs = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
-};
-
-// Don't forget to export it!
-module.exports = {
-  // ... your existing exports
-  getAllUserJobs
 };
 
 module.exports = { createJob, getBoardJobs, updateJob, deleteJob, getAllUserJobs };
