@@ -1,4 +1,16 @@
-const generateEmailHtml = (name, title, company, targetDate, type) => {
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const generateEmailHtml = (rawName, rawTitle, rawCompany, rawTargetDate, type) => {
+  const name = escapeHtml(rawName);
+  const title = escapeHtml(rawTitle);
+  const company = escapeHtml(rawCompany);
+  const targetDate = escapeHtml(rawTargetDate);
   let mainMessage = '';
   
   if (type === 'apply') {

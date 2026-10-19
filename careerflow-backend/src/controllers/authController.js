@@ -12,6 +12,8 @@ const mongoose = require("mongoose");
 const { rejectNonStrings } = require("../utils/validateStrings");
 
 const MAX_OTP_ATTEMPTS = 5;
+const DEFAULT_AVATAR_URL =
+  "https://res.cloudinary.com/demo/image/upload/default-avatar.png";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -99,7 +101,6 @@ const registerUser = async (req, res) => {
   try {
     if (rejectNonStrings(res, req.body, ["email", "otp", "password"])) return;
     const { name, email, password, industries, imageUrl, otp } = req.body;
-    const isExist = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
     const otpDoc = await Otp.findOneAndUpdate(
       { email, attempts: mongoose.trusted({ $lt: MAX_OTP_ATTEMPTS }) },
       { $inc: { attempts: 1 } },
@@ -108,6 +109,10 @@ const registerUser = async (req, res) => {
     if (!otpDoc || otpDoc.otp !== otp) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
     }
+    const isExist = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
+    if (isExist) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
     const newUser = new User({
@@ -115,7 +120,7 @@ const registerUser = async (req, res) => {
       email,
       passwordHash: hash,
       industries,
-      imageUrl,
+      imageUrl: imageUrl || DEFAULT_AVATAR_URL,
       authProvider: 'local'
     });
 
@@ -149,6 +154,9 @@ const registerUser = async (req, res) => {
         },
       });
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
     return res
       .status(500)
       .json({ success: false, message: "Server Error", error: err.message });
@@ -359,38 +367,35 @@ const refreshTokenController = async (req, res) => {
         .json({ success: false, message: "No refresh token provided" });
     }
 
-    jwt.verify(
-      refreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
-      async (err, decoded) => {
-        if (err) {
-          return res.status(403).json({
-            success: false,
-            message: "Invalid or expired refresh token",
-          });
-        }
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    } catch (verifyErr) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
 
-        const user = await User.findById(decoded.id);
-        if (!user) {
-          return res
-            .status(404)
-            .json({ success: false, message: "User not found" });
-        }
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
 
-        if (user.lockUntil && user.lockUntil > Date.now()) {
-          return res
-            .status(403)
-            .json({ success: false, message: "Account is restricted" });
-        }
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Account is restricted" });
+    }
 
-        const { accessToken } = generateTokens(user);
+    const { accessToken } = generateTokens(user);
 
-        return res.status(200).json({
-          success: true,
-          accessToken,
-        });
-      },
-    );
+    return res.status(200).json({
+      success: true,
+      accessToken,
+    });
   } catch (err) {
     return res
       .status(500)
@@ -565,6 +570,9 @@ const resetPassword = async (req, res) => {
 
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
+    user.lockUntil = undefined;
+    user.failedLoginAttempts = 0;
+    if (user.authProvider === "google") user.authProvider = "both";
 
     await user.save();
 

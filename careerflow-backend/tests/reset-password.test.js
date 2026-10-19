@@ -41,3 +41,26 @@ test("resetPassword: wrong token -> 400", async () => {
   const res = await request(app).patch(`/auth/reset-password/${"b".repeat(40)}`).send({ password: "NewPassw0rd!" });
   expect(res.status).toBe(400);
 });
+
+test("S19: reset clears lockUntil and failedLoginAttempts", async () => {
+  const user = await makeUser(Date.now() + 60 * 1000);
+  await User.updateOne({ _id: user._id }, { lockUntil: new Date(Date.now() + 3600 * 1000), failedLoginAttempts: 5 });
+  const res = await request(app).patch(`/auth/reset-password/${RAW}`).send({ password: "NewPassw0rd!" });
+  expect(res.status).toBe(200);
+  const after = await User.findById(user._id);
+  expect(after.lockUntil).toBeUndefined();
+  expect(after.failedLoginAttempts).toBe(0);
+});
+
+test("S19: reset turns authProvider google into both", async () => {
+  const user = await makeUser(Date.now() + 60 * 1000);
+  await User.updateOne({ _id: user._id }, { authProvider: "google" });
+  await request(app).patch(`/auth/reset-password/${RAW}`).send({ password: "NewPassw0rd!" });
+  expect((await User.findById(user._id)).authProvider).toBe("both");
+});
+
+test("S19: reset leaves a local authProvider as local", async () => {
+  const user = await makeUser(Date.now() + 60 * 1000);
+  await request(app).patch(`/auth/reset-password/${RAW}`).send({ password: "NewPassw0rd!" });
+  expect((await User.findById(user._id)).authProvider).toBe("local");
+});

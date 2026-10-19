@@ -31,15 +31,18 @@ const app = express();
 // CORS CONFIG
 // ==========================
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://career-flow-six.vercel.app",
+  ...(process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
+];
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "development"
-      ? true
-      : [
-          "http://localhost:5173",
-          "http://127.0.0.1:5173",
-          "https://career-flow-six.vercel.app",
-        ],
+  origin: allowedOrigins,
 
   credentials: true,
 
