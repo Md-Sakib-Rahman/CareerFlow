@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchAllUserJobs } from "../../Redux/board/boardSlice";
 import { useNavigate } from "react-router";  
 import toast, { Toaster } from "react-hot-toast";
+import { apiUrl } from "../../Axios/baseUrl";
 
 const ResumeBuilder = () => {
   const dispatch = useDispatch();
@@ -35,7 +36,7 @@ const ResumeBuilder = () => {
   const [uploading, setUploading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [timeFilter, setTimeFilter] = useState("All");
-  const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/resume`;
+  const API_URL = apiUrl("/api/resume");
 
   // ==========================================
   // ⚠️ PAYWALL CAPACITIES
