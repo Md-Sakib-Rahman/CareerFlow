@@ -9,9 +9,12 @@ const {
 
 } = require("../controllers/jobsController");
 const { protect } = require("../middleware/authMiddleware");
+const { validateObjectIdParam } = require("../middleware/validateObjectId");
 
 // All job routes require authentication
 router.use(protect);
+router.param("id", validateObjectIdParam);
+router.param("boardId", validateObjectIdParam);
 
 // Main job creation
 // router.route("/")
@@ -27,7 +30,7 @@ router.route("/:id")
   .delete(deleteJob); // DELETE /api/jobs/:id - Delete job & cascade delete standalone reminders
 
 
-router.route("/").get(protect, getAllUserJobs).post(protect, createJob);
+router.route("/").get(getAllUserJobs).post(createJob);
 
 
 module.exports = router;

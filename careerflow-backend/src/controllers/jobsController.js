@@ -2,6 +2,10 @@ const Job = require("../models/Job");
 const Board = require("../models/Board");
 const Reminder = require("../models/Reminder"); // NEW: Import the standalone model
 const User = require("../models/User");
+const Resume = require("../models/Resume");
+const { getPlanLimits } = require("../utils/planLimits");
+
+const isValidLeadDays = (v) => v === undefined || (Number.isInteger(v) && v >= 0 && v <= 30);
 
 /**
  * @desc    Create a new job (Defaults to Wishlist)
@@ -13,7 +17,7 @@ const createJob = async (req, res) => {
   try {
     const {
       boardId, columnId, company, title,
-      salary, url, applyDeadlineAt, reminderLeadDays, notes
+      salary, url, location, applyDeadlineAt, reminderLeadDays, notes
     } = req.body;
     const userId = req.user._id || req.user.id;
 
@@ -23,9 +27,10 @@ const createJob = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    if (user.plan === 'starter') {
+    const jobLimit = getPlanLimits(user.plan).jobs;
+    if (jobLimit !== Infinity) {
       const currentJobCount = await Job.countDocuments({ userId });
-      if (currentJobCount >= 20) {
+      if (currentJobCount >= jobLimit) {
         return res.status(403).json({ 
           success: false, 
           message: "Starter plan limit reached (Max 20 Jobs). Please upgrade to Pro." 
@@ -33,6 +38,10 @@ const createJob = async (req, res) => {
       }
     }
     // ==========================================
+
+    if (!isValidLeadDays(reminderLeadDays)) {
+      return res.status(400).json({ success: false, message: "reminderLeadDays must be an integer from 0 to 30" });
+    }
 
     // 1. VALIDATION
     const board = await Board.findOne({ _id: boardId, userId });
@@ -53,14 +62,14 @@ const createJob = async (req, res) => {
     // 2. Prepare Job Data 
     const jobData = {
       userId, boardId, columnId, company, title,
-      status: "wishlist", salary, url, notes,
+      status: "wishlist", salary, url, location, notes,
       dates: { wishlistAt: new Date() }
     };
 
     let reminderConfig = null;
     if (applyDeadlineAt) {
       const targetDate = new Date(applyDeadlineAt);
-      const lead = reminderLeadDays || 2;
+      const lead = reminderLeadDays ?? 2;
       const rDate = new Date(targetDate);
       rDate.setDate(rDate.getDate() - lead);
 
@@ -83,7 +92,8 @@ const createJob = async (req, res) => {
 
     res.status(201).json({ success: true, message: "Job added to Wishlist", data: newJob });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to create job", error: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Failed to create job" });
   }
 };
 /**
@@ -98,7 +108,8 @@ const getBoardJobs = async (req, res) => {
 
     res.status(200).json({ success: true, count: jobs.length, data: jobs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -118,24 +129,46 @@ const updateJob = async (req, res) => {
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
 
-    // 1. GUARDRAIL
-    if (columnId && status) {
+    if (!isValidLeadDays(reminderLeadDays)) {
+      return res.status(400).json({ success: false, message: "reminderLeadDays must be an integer from 0 to 30" });
+    }
+    if (dates !== undefined && (dates === null || typeof dates !== "object" || Array.isArray(dates))) {
+      return res.status(400).json({ success: false, message: "dates must be an object" });
+    }
+    for (const key of ["applyDeadlineAt", "actualInterviewDate"]) {
+      if (dates && dates[key] !== undefined && Number.isNaN(new Date(dates[key]).getTime())) {
+        return res.status(400).json({ success: false, message: `Invalid date for ${key}` });
+      }
+    }
+
+    // 1. GUARDRAIL: column must belong to the job's board and agree with status
+    let nextStatus = status;
+    if (columnId) {
       const board = await Board.findById(job.boardId);
       const targetColumn = board.columns.id(columnId);
-      if (!targetColumn || targetColumn.internalStatus !== status) {
+      if (!targetColumn) {
+        return res.status(400).json({ success: false, message: "Invalid Column ID for this board." });
+      }
+      if (status && targetColumn.internalStatus !== status) {
         return res.status(400).json({
           success: false,
           message: `Mismatch: Target column does not match status ${status}.`
         });
       }
+      nextStatus = targetColumn.internalStatus;
+    } else if (status && status !== job.status) {
+      return res.status(400).json({
+        success: false,
+        message: "columnId is required when changing status."
+      });
     }
 
     // 2. METADATA UPDATE
     if (metadata.company) job.company = metadata.company;
     if (metadata.title) job.title = metadata.title;
-    if (metadata.location) job.location = metadata.location;
-    if (metadata.url) job.url = metadata.url;
-    if (metadata.notes) job.notes = metadata.notes;
+    if (metadata.location !== undefined) job.location = metadata.location;
+    if (metadata.url !== undefined) job.url = metadata.url;
+    if (metadata.notes !== undefined) job.notes = metadata.notes;
 
     if (metadata.salary) {
       job.salary.min = metadata.salary.min ?? job.salary.min;
@@ -144,11 +177,11 @@ const updateJob = async (req, res) => {
     }
 
     // 3. FUNNEL ANALYTICS & GHOST REMINDER CLEANUP
-    const isStatusChange = status && status !== job.status;
+    const isStatusChange = nextStatus && nextStatus !== job.status;
     const isColumnChange = columnId && columnId !== job.columnId?.toString();
 
     if (isStatusChange || isColumnChange) {
-      const targetStatus = status || job.status;
+      const targetStatus = nextStatus || job.status;
 
       // ==========================================
       // GHOST CLEANUP LOGIC (Simplified & 100% Accurate)
@@ -160,6 +193,8 @@ const updateJob = async (req, res) => {
       // Wipe contextual dates so old deadlines don't linger
       job.dates.actualInterviewDate = undefined;
       job.dates.applyDeadlineAt = undefined;
+
+      if (job.status === "rejected" && targetStatus !== "rejected") job.dates.rejectedAt = undefined;
 
       // FUNNEL FLAGS & DATE LOGIC 
       if (targetStatus === "wishlist") {
@@ -192,9 +227,11 @@ const updateJob = async (req, res) => {
     if (dates) {
       // Because we cleared actualInterviewDate and applyDeadlineAt above, 
       // this will safely write the *new* ones if the payload includes them.
-      for (const key in dates) {
-        job.dates[key] = dates[key];
-      }
+      const isWishlist = job.status === "wishlist";
+      const applyDate = dates.applyDeadlineAt ?? (isWishlist ? dates.actualInterviewDate : undefined);
+      const interviewDate = isWishlist ? undefined : dates.actualInterviewDate;
+      if (applyDate !== undefined) job.dates.applyDeadlineAt = applyDate;
+      if (interviewDate !== undefined) job.dates.actualInterviewDate = interviewDate;
 
       let reminderType = null;
       // ONLY set "apply" if currently in wishlist
@@ -202,16 +239,16 @@ const updateJob = async (req, res) => {
       // ONLY set "interview" if currently in applied/interviewing
       else if (["applied", "interviewing"].includes(job.status)) reminderType = "interview";
 
-      if (reminderType && (dates.actualInterviewDate || dates.applyDeadlineAt)) {
-        const targetDate = new Date(dates.actualInterviewDate || dates.applyDeadlineAt);
-        const lead = reminderLeadDays || 2;
+      if (reminderType && (interviewDate || applyDate)) {
+        const targetDate = new Date(interviewDate || applyDate);
+        const lead = reminderLeadDays ?? 2;
         const rDate = new Date(targetDate);
         rDate.setDate(rDate.getDate() - lead);
 
         await Reminder.findOneAndUpdate(
           { jobId: job._id, type: reminderType },
           { userId, reminderDate: rDate, targetDate, leadDays: lead, isActive: true },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: "after" }
         );
       }
     }
@@ -223,7 +260,8 @@ const updateJob = async (req, res) => {
 
     res.status(200).json({ success: true, data: finalJob });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 /**
@@ -244,6 +282,7 @@ const deleteJob = async (req, res) => {
 
     // 2. CASCADE DELETE: Wipe out any reminders attached to this deleted job
     await Reminder.deleteMany({ jobId: jobId });
+    await Resume.updateMany({ jobId: jobId }, { jobId: null });
 
     res.status(200).json({
       success: true,
@@ -251,7 +290,8 @@ const deleteJob = async (req, res) => {
       data: { id: jobId }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -268,14 +308,9 @@ const getAllUserJobs = async (req, res) => {
 
     res.status(200).json({ success: true, count: jobs.length, data: jobs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
-};
-
-// Don't forget to export it!
-module.exports = {
-  // ... your existing exports
-  getAllUserJobs
 };
 
 module.exports = { createJob, getBoardJobs, updateJob, deleteJob, getAllUserJobs };

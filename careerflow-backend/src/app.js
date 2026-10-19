@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -21,24 +22,32 @@ const { handleStripeWebhook } = require("./controllers/paymentController");
 const Reminder = require("./models/Reminder");
 
 // Utils
+const errorHandler = require("./middleware/errorHandler");
 const { sendNotificationEmail } = require("./utils/email");
 const { generateEmailHtml } = require("./utils/emailTemplates");
 
 const app = express();
 
+// One proxy hop (Vercel) so req.ip is the real client address.
+app.set("trust proxy", 1);
+
 // ==========================
 // CORS CONFIG
 // ==========================
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://career-flow-six.vercel.app",
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+  ...(process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
+];
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "development"
-      ? true
-      : [
-          "http://localhost:5173",
-          "http://127.0.0.1:5173",
-          "https://career-flow-six.vercel.app",
-        ],
+  origin: allowedOrigins,
 
   credentials: true,
 
@@ -112,7 +121,17 @@ app.use("/api/resume", resumeRoutes); // ⭐ Resume Vault API
 // ==========================
 
 app.get("/api/cron/send-daily-emails", async (req, res) => {
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET) {
+    console.error("CRON_SECRET is not set; refusing cron request");
+    return res.status(500).json({ error: "Server misconfigured" });
+  }
+
+  const provided = Buffer.from(req.headers.authorization || "");
+  const expected = Buffer.from(`Bearer ${process.env.CRON_SECRET}`);
+  if (
+    provided.length !== expected.length ||
+    !crypto.timingSafeEqual(provided, expected)
+  ) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -126,17 +145,32 @@ app.get("/api/cron/send-daily-emails", async (req, res) => {
 
       reminderDate: { $lte: now },
     })
-      .populate("userId", "name email")
+      .populate("userId", "name email plan")
       .populate("jobId", "title company");
 
     if (pendingReminders.length === 0) {
       return res
         .status(200)
-        .json({ success: true, message: "No pending reminders found." });
+        .json({
+          success: true,
+          message: "No pending reminders found.",
+          sent: 0,
+          failed: 0,
+          skipped: 0,
+        });
     }
 
     const emailPromises = pendingReminders.map(async (reminder) => {
-      if (!reminder.userId || !reminder.jobId) return;
+      if (!reminder.jobId || !reminder.userId) {
+        // Orphaned: job or user was deleted. Deactivate so it is not re-read daily.
+        reminder.isActive = false;
+        await reminder.save();
+        return "skipped";
+      }
+
+      if (!["pro", "executive"].includes(reminder.userId.plan)) {
+        return "skipped";
+      }
 
       const { email, name } = reminder.userId;
 
@@ -170,26 +204,42 @@ app.get("/api/cron/send-daily-emails", async (req, res) => {
         reminder.type,
       );
 
-      await sendNotificationEmail(
+      const emailSent = await sendNotificationEmail(
         email,
         subject,
         "Please view this email in HTML",
         htmlBody,
       );
 
+      if (!emailSent) return "failed";
+
       reminder.isNotified = true;
 
       reminder.isActive = false;
 
       await reminder.save();
+
+      return "sent";
     });
 
-    await Promise.all(emailPromises);
+    const results = await Promise.allSettled(emailPromises);
+
+    const counts = { sent: 0, failed: 0, skipped: 0 };
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("Reminder email failed:", result.reason);
+        counts.failed++;
+      } else {
+        counts[result.value]++;
+      }
+    }
 
     return res.status(200).json({
       success: true,
 
       message: `Cron executed. Sent ${pendingReminders.length} emails.`,
+
+      ...counts,
     });
   } catch (error) {
     console.error("Error in daily email cron:", error);
@@ -211,6 +261,9 @@ app.get("/", (req, res) => {
     message: "Welcome to the CareerFlow API",
   });
 });
+
+// Error handling (must be registered last)
+app.use(errorHandler());
 
 // ==========================
 // EXPORT APP

@@ -24,10 +24,10 @@ const getMyNotifications = async (req, res) => {
       data: notifications
     });
   } catch (error) {
+    console.error("Reminder error:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Failed to fetch notifications", 
-      error: error.message 
+      message: "Failed to fetch notifications"
     });
   }
 };
@@ -62,10 +62,10 @@ const dismissReminder = async (req, res) => {
       data: { id: reminderId }
     });
   } catch (error) {
+    console.error("Reminder error:", error);
     res.status(500).json({ 
       success: false, 
-      message: "Failed to dismiss notification", 
-      error: error.message 
+      message: "Failed to dismiss notification"
     });
   }
 };

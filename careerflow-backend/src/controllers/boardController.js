@@ -1,6 +1,9 @@
 const Board = require("../models/Board");
 const Job = require("../models/Job");  
+const Reminder = require("../models/Reminder");
+const Resume = require("../models/Resume");
 const User = require("../models/User");
+const { getPlanLimits } = require("../utils/planLimits");
 /**
  * @desc    Create a new board
  * @route   POST /api/boards
@@ -49,22 +52,14 @@ const createBoard = async (req, res) => {
     // ⚠️ PAYWALL LOGIC: Enforce Board Limits
     // ==========================================
     const user = await User.findById(userId);
-    console.log(user)
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const currentBoardCount = await Board.countDocuments({ userId });
-    if (user.plan === 'starter' && currentBoardCount >= 1) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Starter plan limit reached (Max 1 Board). Please upgrade to Pro." 
-      });
-    }
-
-    if (user.plan === 'pro' && currentBoardCount >= 10) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Pro plan limit reached (Max 10 Boards). Please upgrade to Executive." 
-      });
+    if (currentBoardCount >= getPlanLimits(user.plan).boards) {
+      const message = user.plan === 'pro'
+        ? "Pro plan limit reached (Max 10 Boards). Please upgrade to Executive."
+        : "Starter plan limit reached (Max 1 Board). Please upgrade to Pro.";
+      return res.status(403).json({ success: false, message });
     }
     // ==========================================
 
@@ -86,10 +81,10 @@ const createBoard = async (req, res) => {
       data: savedBoard,
     });
   } catch (error) {
+    console.error("Board error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to create board",
-      error: error.message,
     });
   }
 };
@@ -108,10 +103,10 @@ const getMyBoards = async (req, res) => {
       data: boards,
     });
   } catch (error) {
+    console.error("Board error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch boards",
-      error: error.message,
     });
   }
 };
@@ -127,17 +122,46 @@ const updateBoardColumns = async (req, res) => {
     const board = await Board.findOne({ _id: boardId, userId: req.user.id });
     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
 
+    // 0. INPUT VALIDATION
+    const validStatuses = Board.schema.path("columns").schema.path("internalStatus").enumValues;
+    if (
+      !Array.isArray(columns) || columns.length === 0 ||
+      columns.some(col => !col || typeof col.title !== "string" || !col.title.trim() ||
+        !validStatuses.includes(col.internalStatus))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "columns must be a non-empty array of items with a title and a valid internalStatus."
+      });
+    }
+
+    const existingById = new Map(board.columns.map(col => [col._id.toString(), col]));
+    if (columns.some(col => col._id && !existingById.has(col._id.toString()))) {
+      return res.status(400).json({ success: false, message: "Unknown column id." });
+    }
+
+    const retypedIds = columns
+      .filter(col => col._id && existingById.get(col._id.toString()).internalStatus !== col.internalStatus)
+      .map(col => col._id.toString());
+    if (retypedIds.length > 0 && await Job.exists({ columnId: { $in: retypedIds } })) {
+      return res.status(400).json({
+        success: false,
+        message: "Move the jobs out of a column before changing its type."
+      });
+    }
+
     // 1. HIERARCHY DEFINITION (Weight-based)
     const hierarchyOrder = {
       wishlist: 1,
       applied: 2,
       interviewing: 3,
       offer: 4,
-      rejected: 5
+      rejected: 5,
+      archived: 6 // not a required funnel type; always sorts last
     };
 
     // 2. TYPE INTEGRITY CHECK (Must have at least one of each)
-    const requiredTypes = Object.keys(hierarchyOrder);
+    const requiredTypes = Object.keys(hierarchyOrder).filter(type => type !== "archived");
     const incomingTypes = columns.map(col => col.internalStatus);
     const missingTypes = requiredTypes.filter(type => !incomingTypes.includes(type));
 
@@ -185,7 +209,8 @@ const updateBoardColumns = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedBoard });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Board error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 /**
@@ -218,6 +243,9 @@ const deleteBoard = async (req, res) => {
     }
 
     // 3. CASCADE DELETE: Remove all jobs associated with this board
+    const boardJobIds = await Job.find({ boardId }).distinct("_id");
+    await Reminder.deleteMany({ jobId: { $in: boardJobIds } });
+    await Resume.updateMany({ jobId: { $in: boardJobIds } }, { jobId: null });
     const deletedJobs = await Job.deleteMany({ boardId });
 
     // 4. DELETE THE BOARD
@@ -237,10 +265,10 @@ const deleteBoard = async (req, res) => {
       message: `Board and ${deletedJobs.deletedCount} associated jobs deleted successfully.`,
     });
   } catch (error) {
+    console.error("Board error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to delete board",
-      error: error.message,
     });
   }
 };
@@ -273,7 +301,8 @@ const setPrimaryBoard = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedBoard });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Board error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 

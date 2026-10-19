@@ -5,9 +5,15 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/Otp");
-const nodemailer = require("nodemailer");
+const { createMailTransport } = require("../utils/email");
 const { OAuth2Client } = require('google-auth-library');
 const axios = require('axios');
+const mongoose = require("mongoose");
+const { rejectNonStrings } = require("../utils/validateStrings");
+
+const MAX_OTP_ATTEMPTS = 5;
+const DEFAULT_AVATAR_URL =
+  "https://res.cloudinary.com/demo/image/upload/default-avatar.png";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -36,9 +42,10 @@ const createDefaultBoard = async (userId) => {
 
 const sendRegistrationOTP = async (req, res) => {
   try {
+    if (rejectNonStrings(res, req.body, ["email"])) return;
     const { email } = req.body;
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
     if (existingUser) {
       if (existingUser.authProvider === "google") {
         return res.status(400).json({
@@ -52,18 +59,12 @@ const sendRegistrationOTP = async (req, res) => {
         .json({ success: false, message: "Email already exists." });
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
 
     await Otp.deleteMany({ email });
     await Otp.create({ email, otp: otpCode });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const transporter = createMailTransport();
     const mailOptions = {
       from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -79,25 +80,33 @@ const sendRegistrationOTP = async (req, res) => {
     };
     await transporter.sendMail(mailOptions);
 
-    console.log(`MOCK EMAIL SENT TO ${email}: OTP is ${otpCode}`);
 
     return res
       .status(200)
       .json({ success: true, message: "OTP sent to email" });
   } catch (err) {
+    console.error("Auth error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, plan, industries, imageUrl, otp } = req.body;
-    const isExist = await User.findOne({ email });
-    const validOtp = await Otp.findOne({ email, otp });
-    if (!validOtp) {
+    if (rejectNonStrings(res, req.body, ["email", "otp", "password"])) return;
+    const { name, email, password, industries, imageUrl, otp } = req.body;
+    const otpDoc = await Otp.findOneAndUpdate(
+      { email, attempts: mongoose.trusted({ $lt: MAX_OTP_ATTEMPTS }) },
+      { $inc: { attempts: 1 } },
+      { returnDocument: "after", sanitizeFilter: true }
+    );
+    if (!otpDoc || otpDoc.otp !== otp) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+    const isExist = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
+    if (isExist) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
     }
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
@@ -105,9 +114,8 @@ const registerUser = async (req, res) => {
       name,
       email,
       passwordHash: hash,
-      plan,
       industries,
-      imageUrl,
+      imageUrl: imageUrl || DEFAULT_AVATAR_URL,
       authProvider: 'local'
     });
 
@@ -141,9 +149,13 @@ const registerUser = async (req, res) => {
         },
       });
   } catch (err) {
+    console.error("Auth error:", err);
+    if (err.code === 11000) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -155,10 +167,25 @@ const registerUser = async (req, res) => {
 const googleSignIn = async (req, res) => {
   try {
     // 1. Receive the token from frontend (it's actually an access_token)
+    if (rejectNonStrings(res, req.body, ["idToken"])) return;
     const { idToken: accessToken } = req.body;
 
     if (!accessToken) {
       return res.status(400).json({ success: false, message: "No token provided" });
+    }
+
+    // 2a. Verify the token was issued for THIS app and the email is verified
+    const tokenInfo = await axios.get("https://oauth2.googleapis.com/tokeninfo", {
+      params: { access_token: accessToken },
+    });
+    if (
+      tokenInfo.data.aud !== process.env.GOOGLE_CLIENT_ID ||
+      String(tokenInfo.data.email_verified) !== "true"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Google Authentication failed. Please try again."
+      });
     }
 
     // 2. Exchange the Access Token for User Info manually via Google API
@@ -166,10 +193,11 @@ const googleSignIn = async (req, res) => {
       `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`
     );
 
-    const { email, name, picture } = googleResponse.data;
+    const { name, picture } = googleResponse.data;
+    const email = tokenInfo.data.email;
 
     // 3. Find or Create User
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
 
     if (!user) {
       const randomPassword = crypto.randomBytes(20).toString('hex');
@@ -224,6 +252,7 @@ const googleSignIn = async (req, res) => {
 };
 const setGoogleUserPassword = async (req, res) => {
   try {
+    if (rejectNonStrings(res, req.body, ["newPassword"])) return;
     const { newPassword } = req.body;
 
     const user = await User.findById(req.user.id);
@@ -251,17 +280,18 @@ const setGoogleUserPassword = async (req, res) => {
     });
 
   } catch (err) {
-    return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    console.error("Auth error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 const loginUser = async (req, res) => {
   try {
+    if (rejectNonStrings(res, req.body, ["email", "password"])) return;
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
     if (!user) {
-      console.log("no user found")
       return res
         .status(401)
         .json({ success: false, message: "Invalid Credentials" });
@@ -277,7 +307,6 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
-      console.log("LOGIN FAILED: Passwords do not match")
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
       if (user.failedLoginAttempts >= 3) {
@@ -296,7 +325,6 @@ const loginUser = async (req, res) => {
     await user.save();
 
     const { accessToken, refreshToken } = generateTokens(user);
-    console.log(refreshToken);
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -321,9 +349,10 @@ const loginUser = async (req, res) => {
         },
       });
   } catch (err) {
+    console.error("Auth error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -336,42 +365,40 @@ const refreshTokenController = async (req, res) => {
         .json({ success: false, message: "No refresh token provided" });
     }
 
-    jwt.verify(
-      refreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
-      async (err, decoded) => {
-        if (err) {
-          return res.status(403).json({
-            success: false,
-            message: "Invalid or expired refresh token",
-          });
-        }
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    } catch (verifyErr) {
+      return res.status(403).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
 
-        const user = await User.findById(decoded.id);
-        if (!user) {
-          return res
-            .status(404)
-            .json({ success: false, message: "User not found" });
-        }
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
 
-        if (user.lockUntil && user.lockUntil > Date.now()) {
-          return res
-            .status(403)
-            .json({ success: false, message: "Account is restricted" });
-        }
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Account is restricted" });
+    }
 
-        const { accessToken } = generateTokens(user);
+    const { accessToken } = generateTokens(user);
 
-        return res.status(200).json({
-          success: true,
-          accessToken,
-        });
-      },
-    );
+    return res.status(200).json({
+      success: true,
+      accessToken,
+    });
   } catch (err) {
+    console.error("Auth error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -396,9 +423,10 @@ const getMe = async (req, res) => {
       res.status(404).json({ success: false, message: "User not found" });
     }
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -428,21 +456,25 @@ const updateMe = async (req, res) => {
       res.status(404).json({ success: false, message: "User not found" });
     }
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
 const forgotPassword = async (req, res) => {
   try {
+    if (rejectNonStrings(res, req.body, ["email"])) return;
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).setOptions({ sanitizeFilter: true });
 
+    // Same generic answer whether or not the account exists (no enumeration).
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(200).json({
+        success: true,
+        message: "If an account with that email exists, a reset link has been sent."
+      });
     }
 
     const resetToken = crypto.randomBytes(20).toString("hex");
@@ -456,19 +488,14 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // ⚠️ NEW: Dynamically assign the URL based on the environment
-    const frontendUrl = process.env.NODE_ENV === "production" 
-      ? "https://career-flow-six.vercel.app" 
-      : "http://localhost:5173";
+    const frontendUrl = process.env.CLIENT_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://career-flow-six.vercel.app"
+        : "http://localhost:5173");
       
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const transporter = createMailTransport();
 
     const mailOptions = {
       from: `"CareerFlow Support" <${process.env.EMAIL_USER}>`,
@@ -498,27 +525,21 @@ const forgotPassword = async (req, res) => {
     };
     await transporter.sendMail(mailOptions);
     
-    if (process.env.NODE_ENV === "development") {
-      return res.status(200).json({
-        success: true,
-        message: "Email sent. (DEV MODE: URL included below)",
-        resetUrl: resetUrl
-      });
-    } else {
-      return res.status(200).json({
-        success: true,
-        message: "If an account with that email exists, a reset link has been sent."
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      message: "If an account with that email exists, a reset link has been sent."
+    });
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
 const resetPassword = async (req, res) => {
   try {
+    if (rejectNonStrings(res, req.body, ["password"])) return;
     const hashedToken = crypto
       .createHash("sha256")
       .update(req.params.token)
@@ -526,8 +547,8 @@ const resetPassword = async (req, res) => {
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: Date.now() },
-    });
+      passwordResetExpires: mongoose.trusted({ $gt: Date.now() }),
+    }).setOptions({ sanitizeFilter: true });
 
     if (!user) {
       return res
@@ -540,6 +561,9 @@ const resetPassword = async (req, res) => {
 
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
+    user.lockUntil = undefined;
+    user.failedLoginAttempts = 0;
+    if (user.authProvider === "google") user.authProvider = "both";
 
     await user.save();
 
@@ -547,9 +571,10 @@ const resetPassword = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Password reset successful" });
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 

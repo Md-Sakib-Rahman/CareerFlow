@@ -1,13 +1,17 @@
 const nodemailer = require('nodemailer');
 
+// Builds the shared email transporter (also used by authController for OTP and reset mails)
+const createMailTransport = () =>
+  nodemailer.createTransport({
+    service: 'gmail', // You can change this to 'sendgrid', 'outlook', etc.
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
 // Configure the email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // You can change this to 'sendgrid', 'outlook', etc.
-  auth: {
-    user: process.env.EMAIL_USER, 
-    pass: process.env.EMAIL_PASS, 
-  },
-});
+const transporter = createMailTransport();
 
 /**
  * Sends an email notification
@@ -35,4 +39,4 @@ const sendNotificationEmail = async (to, subject, text, html = '') => {
   }
 };
 
-module.exports = { sendNotificationEmail };
+module.exports = { sendNotificationEmail, createMailTransport };
