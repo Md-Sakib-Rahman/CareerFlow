@@ -49,7 +49,6 @@ const createBoard = async (req, res) => {
     // ⚠️ PAYWALL LOGIC: Enforce Board Limits
     // ==========================================
     const user = await User.findById(userId);
-    console.log(user)
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const currentBoardCount = await Board.countDocuments({ userId });

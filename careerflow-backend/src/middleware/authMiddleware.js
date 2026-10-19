@@ -7,11 +7,9 @@ const protect = (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     try {
       token = req.headers.authorization.split(" ")[1];
-      console.log(`\n[MIDDLEWARE] Token received from frontend.`);
 
       // 2. Attempt to verify
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      console.log(`[MIDDLEWARE] Token verified successfully. Payload ID:`, decoded.id || decoded._id || "MISSING ID");
       
       req.user = decoded;
       return next();
@@ -22,7 +20,6 @@ const protect = (req, res, next) => {
   }
 
   if (!token) {
-    console.log(`[MIDDLEWARE ERROR] No Authorization header found in the request.`);
     return res.status(401).json({ success: false, message: "Not authorized, no token provided" });
   }
 };

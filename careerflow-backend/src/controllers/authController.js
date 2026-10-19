@@ -79,7 +79,6 @@ const sendRegistrationOTP = async (req, res) => {
     };
     await transporter.sendMail(mailOptions);
 
-    console.log(`MOCK EMAIL SENT TO ${email}: OTP is ${otpCode}`);
 
     return res
       .status(200)
@@ -261,7 +260,6 @@ const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      console.log("no user found")
       return res
         .status(401)
         .json({ success: false, message: "Invalid Credentials" });
@@ -277,7 +275,6 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
-      console.log("LOGIN FAILED: Passwords do not match")
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
       if (user.failedLoginAttempts >= 3) {
@@ -296,7 +293,6 @@ const loginUser = async (req, res) => {
     await user.save();
 
     const { accessToken, refreshToken } = generateTokens(user);
-    console.log(refreshToken);
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

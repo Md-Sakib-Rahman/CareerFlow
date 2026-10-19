@@ -27,7 +27,6 @@ router.post("/add", protect, upload.single("resume"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const extractedUserId = req.user?.id || req.user?._id || req.userId;
-    console.log("The User ID trying to upload is:", extractedUserId);
 
     if (!extractedUserId) {
         return res.status(400).json({ message: "Could not extract User ID from token. Check your verifyToken middleware." });
