@@ -140,17 +140,32 @@ app.get("/api/cron/send-daily-emails", async (req, res) => {
 
       reminderDate: { $lte: now },
     })
-      .populate("userId", "name email")
+      .populate("userId", "name email plan")
       .populate("jobId", "title company");
 
     if (pendingReminders.length === 0) {
       return res
         .status(200)
-        .json({ success: true, message: "No pending reminders found." });
+        .json({
+          success: true,
+          message: "No pending reminders found.",
+          sent: 0,
+          failed: 0,
+          skipped: 0,
+        });
     }
 
     const emailPromises = pendingReminders.map(async (reminder) => {
-      if (!reminder.userId || !reminder.jobId) return;
+      if (!reminder.jobId || !reminder.userId) {
+        // Orphaned: job or user was deleted. Deactivate so it is not re-read daily.
+        reminder.isActive = false;
+        await reminder.save();
+        return "skipped";
+      }
+
+      if (!["pro", "executive"].includes(reminder.userId.plan)) {
+        return "skipped";
+      }
 
       const { email, name } = reminder.userId;
 
@@ -184,26 +199,42 @@ app.get("/api/cron/send-daily-emails", async (req, res) => {
         reminder.type,
       );
 
-      await sendNotificationEmail(
+      const emailSent = await sendNotificationEmail(
         email,
         subject,
         "Please view this email in HTML",
         htmlBody,
       );
 
+      if (!emailSent) return "failed";
+
       reminder.isNotified = true;
 
       reminder.isActive = false;
 
       await reminder.save();
+
+      return "sent";
     });
 
-    await Promise.all(emailPromises);
+    const results = await Promise.allSettled(emailPromises);
+
+    const counts = { sent: 0, failed: 0, skipped: 0 };
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("Reminder email failed:", result.reason);
+        counts.failed++;
+      } else {
+        counts[result.value]++;
+      }
+    }
 
     return res.status(200).json({
       success: true,
 
       message: `Cron executed. Sent ${pendingReminders.length} emails.`,
+
+      ...counts,
     });
   } catch (error) {
     console.error("Error in daily email cron:", error);

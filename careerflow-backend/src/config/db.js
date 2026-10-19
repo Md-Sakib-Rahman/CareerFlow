@@ -14,18 +14,13 @@
 
 const mongoose = require("mongoose");
 
-// Global cache variable to reuse the connection between Vercel function invocations
-let isConnected = false;
-
 const connectDB = async () => {
-  if (isConnected) {
+  if (mongoose.connection.readyState === 1) {
     return; // Already connected, skip!
   }
 
   try {
-    const db = await mongoose.connect(process.env.MONGO_URL);
-    // FIX: Must target index 0 of the connections array
-    isConnected = db.connections.readyState === 1;
+    await mongoose.connect(process.env.MONGO_URL);
     console.log("MongoDB Connected for Serverless!");
   } catch (error) {
     console.error("MongoDB Connection Error:", error);
