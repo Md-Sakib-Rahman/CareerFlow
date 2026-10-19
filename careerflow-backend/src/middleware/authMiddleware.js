@@ -15,7 +15,7 @@ const protect = (req, res, next) => {
       return next();
     } catch (error) {
       console.error(`[MIDDLEWARE ERROR] JWT Verification Failed:`, error.message);
-      return res.status(401).json({ success: false, message: "Not authorized, token failed or expired", error: error.message });
+      return res.status(401).json({ success: false, message: "Not authorized, token failed or expired" });
     }
   }
 

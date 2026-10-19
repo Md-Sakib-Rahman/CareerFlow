@@ -122,7 +122,8 @@ const getAnalytics = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Analytics error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 /**
@@ -228,7 +229,7 @@ const getAiInsights = async (req, res) => {
 
   } catch (error) {
     console.error("AI Insights Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 module.exports = { getAnalytics, getAiInsights };

@@ -177,6 +177,19 @@ describe("S10: webhook error handling", () => {
     expect(res.status).toBe(400);
   });
 
+  test("bad signature -> 400 with fixed message, no raw error text", async () => {
+    stripe.webhooks.constructEvent.mockImplementation(() => { throw new Error("secret-detail"); });
+    const res = await request(app)
+      .post("/api/payments/webhook")
+      .set("Content-Type", "application/json")
+      .set("stripe-signature", "bad")
+      .send("{}");
+    expect(res.status).toBe(400);
+    expect(res.text).not.toContain("secret-detail");
+    expect(res.text).toContain("Webhook signature verification failed");
+    expect(console.error).toHaveBeenCalled();
+  });
+
   test("pending pro row retried after user bought executive -> 200, stays executive, row completed", async () => {
     await User.updateOne({ _id: user._id }, { plan: "executive" });
     await Transaction.create({ user: user._id, stripeSessionId: "cs_1", amount: 9.99, status: "pending" });

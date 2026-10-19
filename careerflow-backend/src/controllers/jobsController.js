@@ -92,7 +92,8 @@ const createJob = async (req, res) => {
 
     res.status(201).json({ success: true, message: "Job added to Wishlist", data: newJob });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to create job", error: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Failed to create job" });
   }
 };
 /**
@@ -107,7 +108,8 @@ const getBoardJobs = async (req, res) => {
 
     res.status(200).json({ success: true, count: jobs.length, data: jobs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -258,7 +260,8 @@ const updateJob = async (req, res) => {
 
     res.status(200).json({ success: true, data: finalJob });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 /**
@@ -287,7 +290,8 @@ const deleteJob = async (req, res) => {
       data: { id: jobId }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -304,7 +308,8 @@ const getAllUserJobs = async (req, res) => {
 
     res.status(200).json({ success: true, count: jobs.length, data: jobs });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Jobs error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 

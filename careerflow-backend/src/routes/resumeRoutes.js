@@ -64,7 +64,8 @@ router.post("/add", protect, upload.single("resume"), async (req, res) => {
     }
     res.status(201).json(resume);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Resume error:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -108,7 +109,8 @@ router.patch("/:id", protect, upload.single("resume"), async (req, res) => {
     );
     res.json(updated);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Resume error:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -124,7 +126,8 @@ router.get("/", protect,  async (req, res) => {
       .populate("jobId", "title company");
     res.json(resumes);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Resume error:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
@@ -141,7 +144,8 @@ router.delete("/:id", protect, async (req, res) => {
 
     res.json({ message: "Resume deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Resume error:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 

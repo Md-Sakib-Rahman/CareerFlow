@@ -81,10 +81,10 @@ const createBoard = async (req, res) => {
       data: savedBoard,
     });
   } catch (error) {
+    console.error("Board error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to create board",
-      error: error.message,
     });
   }
 };
@@ -103,10 +103,10 @@ const getMyBoards = async (req, res) => {
       data: boards,
     });
   } catch (error) {
+    console.error("Board error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch boards",
-      error: error.message,
     });
   }
 };
@@ -209,7 +209,8 @@ const updateBoardColumns = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedBoard });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Board error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 /**
@@ -264,10 +265,10 @@ const deleteBoard = async (req, res) => {
       message: `Board and ${deletedJobs.deletedCount} associated jobs deleted successfully.`,
     });
   } catch (error) {
+    console.error("Board error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to delete board",
-      error: error.message,
     });
   }
 };
@@ -300,7 +301,8 @@ const setPrimaryBoard = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedBoard });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Board error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 

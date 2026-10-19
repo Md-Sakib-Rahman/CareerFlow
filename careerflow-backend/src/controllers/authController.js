@@ -85,9 +85,10 @@ const sendRegistrationOTP = async (req, res) => {
       .status(200)
       .json({ success: true, message: "OTP sent to email" });
   } catch (err) {
+    console.error("Auth error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -148,12 +149,13 @@ const registerUser = async (req, res) => {
         },
       });
   } catch (err) {
+    console.error("Auth error:", err);
     if (err.code === 11000) {
       return res.status(400).json({ success: false, message: "Email already exists" });
     }
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -278,7 +280,8 @@ const setGoogleUserPassword = async (req, res) => {
     });
 
   } catch (err) {
-    return res.status(500).json({ success: false, message: "Server Error", error: err.message });
+    console.error("Auth error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
@@ -346,9 +349,10 @@ const loginUser = async (req, res) => {
         },
       });
   } catch (err) {
+    console.error("Auth error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -391,9 +395,10 @@ const refreshTokenController = async (req, res) => {
       accessToken,
     });
   } catch (err) {
+    console.error("Auth error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -418,9 +423,10 @@ const getMe = async (req, res) => {
       res.status(404).json({ success: false, message: "User not found" });
     }
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -450,9 +456,10 @@ const updateMe = async (req, res) => {
       res.status(404).json({ success: false, message: "User not found" });
     }
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -523,9 +530,10 @@ const forgotPassword = async (req, res) => {
       message: "If an account with that email exists, a reset link has been sent."
     });
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 
@@ -563,9 +571,10 @@ const resetPassword = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Password reset successful" });
   } catch (err) {
+    console.error("Auth error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: err.message });
+      .json({ success: false, message: "Server Error" });
   }
 };
 

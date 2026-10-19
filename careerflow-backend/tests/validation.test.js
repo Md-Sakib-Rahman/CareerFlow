@@ -50,6 +50,15 @@ describe("L16: error middleware", () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
   });
+  test("CastError -> 400 with fixed message, no Mongoose text", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const err = new mongoose.Error.CastError("ObjectId", "secret-detail", "_id");
+    const res = await request(appThrowing(err)).get("/boom");
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, message: "Invalid request data" });
+    expect(JSON.stringify(res.body)).not.toContain("secret-detail");
+    expect(console.error).toHaveBeenCalled();
+  });
   test("ValidationError -> 400", async () => {
     const err = new mongoose.Error.ValidationError();
     const res = await request(appThrowing(err)).get("/boom");
