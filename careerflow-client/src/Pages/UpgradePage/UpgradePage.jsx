@@ -19,7 +19,7 @@ const UpgradePage = () => {
       icon: <FaPaperPlane size={24} />,
       price: "Free",
       description: "Essential tools to get your job search organized.",
-      features: ["Basic Kanban Board", "Up to 50 Applications", "Standard Support"],
+      features: ["Basic Kanban Board", "Up to 20 Applications", "Standard Support"],
     },
     {
       id: "pro",
@@ -35,7 +35,7 @@ const UpgradePage = () => {
       icon: <FaBriefcase size={24} />,
       price: "$29.99",
       description: "The ultimate suite with AI coaching and priority matching.",
-      features: ["Everything in Pro", "AI Resume Matching", "Priority Support 24/7"],
+      features: ["Everything in Pro"],
     }
   ];
 

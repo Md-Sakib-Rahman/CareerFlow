@@ -120,7 +120,7 @@ export default function PricingSection() {
                 "Everything in Starter, plus:",
                 "Unlimited job applications",
                 "Access up to 10 Kanban Boards",
-                "Store up to 30 PDF Resumes",
+                "Store up to 30 PDF, DOC, DOCX Resumes",
                 "Gemini AI Pipeline Insights",
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
@@ -162,9 +162,8 @@ export default function PricingSection() {
               {[
                 "Everything in Pro, plus:",
                 "Unlimited Kanban Boards",
-                "Store up to 100 PDF Resumes",
+                "Store up to 100 PDF, DOC, DOCX Resumes",
                 "Advanced Funnel Analytics",
-                "Priority Support",
               ].map((item, i) => (
                 <li key={i} className="flex gap-3">
                   <Check size={16} className="text-primary mt-1 flex-shrink-0" />
