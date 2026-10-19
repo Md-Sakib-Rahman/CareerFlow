@@ -6,8 +6,41 @@ const Resume = require("../models/Resume");
 const Job = require("../models/Job");
 const mongoose = require("mongoose");
 const cloudinary = require("../config/cloudinary");
+const path = require("path");
+const User = require("../models/User");
+const { getPlanLimits } = require("../utils/planLimits");
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
+const ALLOWED_TYPES = {
+  ".pdf": ["application/pdf"],
+  ".doc": ["application/msword"],
+  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+};
+const FILE_TYPE_MESSAGE = "Only PDF, DOC and DOCX files are allowed";
+
+// An empty or application/octet-stream MIME type is accepted only for an allowed extension.
+const fileFilter = (req, file, cb) => {
+  const allowed = ALLOWED_TYPES[path.extname(file.originalname || "").toLowerCase()];
+  if (allowed && (!file.mimetype || file.mimetype === "application/octet-stream" || allowed.includes(file.mimetype))) return cb(null, true);
+  const err = new Error(FILE_TYPE_MESSAGE);
+  err.code = "INVALID_FILE_TYPE";
+  cb(err);
+};
+
+const upload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE }, fileFilter });
+
+// Turns multer size/type errors into clear 400/413 responses instead of a 500.
+const uploadResume = (req, res, next) => {
+  upload.single("resume")(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ message: "File too large. Maximum size is 4 MB" });
+    }
+    if (err.code === "INVALID_FILE_TYPE") return res.status(400).json({ message: FILE_TYPE_MESSAGE });
+    return res.status(400).json({ message: "Invalid file upload" });
+  });
+};
 
 const { protect } = require("../middleware/authMiddleware.js");
 const { validateObjectIdParam } = require("../middleware/validateObjectId");
@@ -36,13 +69,22 @@ const checkJobId = async (jobId, userId) => {
 };
 
 /* Upload Resume */
-router.post("/add", protect, upload.single("resume"), async (req, res) => {
+router.post("/add", protect, uploadResume, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     const extractedUserId = req.user?.id || req.user?._id || req.userId;
 
     if (!extractedUserId) {
         return res.status(400).json({ message: "Could not extract User ID from token. Check your verifyToken middleware." });
+    }
+    // Plan comes from the database, not the token. Checked before any Cloudinary call.
+    const owner = await User.findById(extractedUserId).select("plan");
+    const limit = getPlanLimits(owner?.plan).resumes;
+    if (limit === 0) {
+      return res.status(403).json({ message: "Your plan does not include resume uploads. Upgrade to upload resumes." });
+    }
+    if ((await Resume.countDocuments({ userId: extractedUserId })) >= limit) {
+      return res.status(403).json({ message: `Resume limit reached for your plan (${limit}). Delete a resume or upgrade.` });
     }
     const jobError = await checkJobId(req.body.jobId, extractedUserId);
     if (jobError) return res.status(jobError.status).json({ message: jobError.message });
@@ -70,7 +112,7 @@ router.post("/add", protect, upload.single("resume"), async (req, res) => {
 });
 
 /* Update Resume (PATCH) - */
-router.patch("/:id", protect, upload.single("resume"), async (req, res) => {
+router.patch("/:id", protect, uploadResume, async (req, res) => {
   try {
     const resume = await Resume.findOne({ _id: req.params.id, userId: req.user.id });
     if (!resume) return res.status(404).json({ message: "Resume not found" });
