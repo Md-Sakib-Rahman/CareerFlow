@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/auth/(.*)",
+      "destination": "https://career-flow-backend.vercel.app/auth/$1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://career-flow-backend.vercel.app/api/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

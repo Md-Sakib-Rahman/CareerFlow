@@ -4,6 +4,27 @@ import { fetchReminders, dismissReminderAction } from "../../Redux/reminder/remi
 import { Bell, Check, CalendarClock, Crown } from "lucide-react"; // ⚠️ Added Crown
 import { useNavigate } from "react-router"; // ⚠️ Added for upgrade routing
 
+const REMINDER_HEADINGS = {
+  apply: "Apply deadline",
+  interview: "Interview",
+  "follow-up": "Follow-up",
+};
+
+const reminderHeading = (notif) => REMINDER_HEADINGS[notif.type] || "Reminder";
+
+const reminderLine = (notif) => {
+  const job = notif.jobId;
+  const what = job
+    ? [job.title, job.company].filter(Boolean).join(" at ") || "Job application"
+    : "Job no longer available";
+  const date = notif.targetDate ? new Date(notif.targetDate) : null;
+  const when =
+    date && !isNaN(date)
+      ? date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+      : null;
+  return when ? `${what} · ${when}` : what;
+};
+
 const NotificationBell = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -105,17 +126,11 @@ const NotificationBell = () => {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-base-content truncate">
-                    {notif.title || "Job Reminder"}
+                    {reminderHeading(notif)}
                   </p>
                   <p className="text-xs text-base-content/70 mt-1 line-clamp-2 leading-relaxed">
-                    {notif.description || "Follow up on this application."}
+                    {reminderLine(notif)}
                   </p>
-                  
-                  {notif.jobId?.company && (
-                    <p className="text-[10px] font-bold text-primary mt-2 uppercase tracking-wider">
-                      {notif.jobId.company}
-                    </p>
-                  )}
                 </div>
                 
                 <button

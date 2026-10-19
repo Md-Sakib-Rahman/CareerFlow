@@ -15,6 +15,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchAllUserJobs } from "../../Redux/board/boardSlice";
 import { useNavigate } from "react-router";  
 import toast, { Toaster } from "react-hot-toast";
+import { apiUrl } from "../../Axios/baseUrl";
+import { validateResumeFile, getResumeLimit, RESUME_ACCEPT } from "./validateResumeFile";
 
 const ResumeBuilder = () => {
   const dispatch = useDispatch();
@@ -35,22 +37,21 @@ const ResumeBuilder = () => {
   const [uploading, setUploading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [timeFilter, setTimeFilter] = useState("All");
-  const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/resume`;
+  const API_URL = apiUrl("/api/resume");
 
   // ==========================================
   // ⚠️ PAYWALL CAPACITIES
   // ==========================================
   const isStarter = user?.plan === "starter";
-  const resumeLimit = user?.plan === "executive" ? 100 : user?.plan === "pro" ? 30 : 0;
+  const resumeLimit = getResumeLimit(user?.plan);
   const isLimitReached = resumes.length >= resumeLimit;
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    // Only fetch data if they are legally allowed to see the page
-    if (!isStarter) {
-      dispatch(fetchAllUserJobs());
-      fetchResumes();
-    }
-  }, [dispatch, isStarter]);
+    // Starter users are fetched too: after a downgrade they keep their old resumes
+    dispatch(fetchAllUserJobs());
+    fetchResumes();
+  }, [dispatch]);
 
   const fetchResumes = async () => {
     try {
@@ -63,20 +64,27 @@ const ResumeBuilder = () => {
     } catch (err) {
       console.error(err);
       toast.error("Failed to load resumes");
+    } finally {
+      setLoaded(true);
     }
   };
 
   const validateFile = (e) => {
     const selected = e.target.files[0];
     if (!selected) return;
-    if (selected.type !== "application/pdf") {
-      return toast.error("Only PDF files allowed");
+    const result = validateResumeFile(selected);
+    if (!result.ok) {
+      e.target.value = "";
+      return toast.error(result.message);
     }
     setFile(selected);
   };
 
+  const isPdf = (name) => /\.pdf$/i.test(name || "");
+  const previewResume = resumes.find((r) => r.fileUrl === preview);
+
   const handleUpload = async () => {
-    if (!file && !editingResume) return toast.error("Select a PDF file");
+    if (!file && !editingResume) return toast.error("Select a PDF, DOC or DOCX file");
 
     const formData = new FormData();
     if (file) formData.append("resume", file);
@@ -162,8 +170,9 @@ const ResumeBuilder = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
+        const deleted = resumes.find((r) => r._id === deleteConfirmId);
         setResumes((prev) => prev.filter((r) => r._id !== deleteConfirmId));
-        if (preview?.includes(deleteConfirmId)) setPreview(null);
+        if (deleted && deleted.fileUrl === preview) setPreview(null);
         toast.success("Resume deleted successfully!");
       } else {
         throw new Error();
@@ -200,7 +209,16 @@ const ResumeBuilder = () => {
   // ==========================================
   // ⚠️ HARD PAYWALL RENDER FOR STARTER PLAN
   // ==========================================
-  if (isStarter) {
+  if (isStarter && !loaded) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <span role="status" aria-label="Loading" className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
+
+  // Starters with leftover resumes (after a downgrade) fall through to the vault
+  if (isStarter && resumes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
         <div className="bg-primary/10 p-6 rounded-full mb-6">
@@ -210,7 +228,7 @@ const ResumeBuilder = () => {
           Resume Vault is a Pro Feature
         </h2>
         <p className="text-base-content/70 mb-8 max-w-md text-lg">
-          Securely store, organize, and preview up to 30 tailored PDF resumes directly inside CareerFlow. 
+          Securely store, organize, and preview up to 30 tailored PDF, DOC or DOCX resumes directly inside CareerFlow. 
         </p>
         <button onClick={() => navigate("/upgrade")} className="btn btn-primary btn-lg shadow-xl shadow-primary/20">
           Upgrade to Pro
@@ -242,7 +260,12 @@ const ResumeBuilder = () => {
     return matchesSearch && matchesCategory && matchesTime;
   });
 
-  const uniqueCategories = ["All", ...new Set(resumes.map((r) => r.type))];
+  const limitMessage =
+    resumeLimit === 0
+      ? "Your plan doesn't include uploads. Upgrade to add resumes; you can still view, download and delete existing ones."
+      : `Your plan allows ${resumeLimit} resumes. Delete some${user?.plan === "pro" ? " or upgrade to Executive" : ""} to upload more.`;
+
+  const uniqueCategories =["All", ...new Set(resumes.map((r) => r.type))];
 
   return (
     <div className="p-6 max-w-7xl mx-auto min-h-screen bg-base-100 text-base-content">
@@ -260,7 +283,7 @@ const ResumeBuilder = () => {
         <button
           onClick={() => {
             if (isLimitReached) {
-              toast.error(`Limit reached! Upgrade to Executive for more storage.`, { icon: '🔒' });
+              toast.error(limitMessage, { icon: '🔒' });
             } else {
               setEditingResume(null);
               setModal(true);
@@ -272,6 +295,10 @@ const ResumeBuilder = () => {
           <Upload size={18} /> {isLimitReached ? "Vault Full" : "Upload New"}
         </button>
       </div>
+
+      {isLimitReached && (
+        <p className="text-sm text-error/80 mb-4">{limitMessage}</p>
+      )}
 
       {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -319,7 +346,18 @@ const ResumeBuilder = () => {
       <div className="grid grid-cols-12 gap-6">
         {/* Preview */}
         <div className="col-span-12 lg:col-span-8 border rounded-2xl h-[650px] bg-base-200 shadow-sm overflow-hidden relative">
-          {preview ? (
+          {preview && previewResume && !isPdf(previewResume.name) ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400">
+              <FileText size={48} className="opacity-20" />
+              <p>Preview isn't available for Word files. Use Download to open it.</p>
+              <button
+                onClick={() => downloadPDF(previewResume.fileUrl, previewResume.name)}
+                className="btn btn-primary btn-sm"
+              >
+                Download
+              </button>
+            </div>
+          ) : preview ? (
             <iframe
               src={`https://docs.google.com/gview?url=${encodeURIComponent(
                 preview
@@ -430,12 +468,12 @@ const ResumeBuilder = () => {
 
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
-                  Resume File (PDF)
+                  Resume File (PDF, DOC or DOCX, max 4 MB)
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-base-200 transition-colors relative">
                   <input
                     type="file"
-                    accept="application/pdf"
+                    accept={RESUME_ACCEPT}
                     onChange={validateFile}
                     className="absolute inset-0 opacity-0 cursor-pointer"
                   />
@@ -446,7 +484,7 @@ const ResumeBuilder = () => {
                         {file.name}
                       </span>
                     ) : (
-                      "Click or drag to upload PDF"
+                      "Click or drag to upload PDF, DOC or DOCX"
                     )}
                   </p>
                 </div>
