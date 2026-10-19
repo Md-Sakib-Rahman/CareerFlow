@@ -15,9 +15,12 @@ export const getResumeLimit = (plan) =>
 
 export const validateResumeFile = (file) => {
   const name = (file?.name || "").toLowerCase();
-  // some browsers report an empty MIME type for .doc/.docx
-  const typeOk = ALLOWED_TYPES.includes(file?.type) || file?.type === "";
   const extOk = ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  // some browsers report an empty or generic MIME type for .doc/.docx
+  const typeOk =
+    ALLOWED_TYPES.includes(file?.type) ||
+    file?.type === "" ||
+    (file?.type === "application/octet-stream" && extOk);
   if (!typeOk || !extOk) {
     return { ok: false, message: "Only PDF, DOC or DOCX files are allowed" };
   }

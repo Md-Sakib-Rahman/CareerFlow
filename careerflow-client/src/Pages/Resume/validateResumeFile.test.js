@@ -29,6 +29,17 @@ describe("validateResumeFile", () => {
     expect(validateResumeFile(file("cv.exe", "application/octet-stream")).message).toBe(TYPE_ERROR);
   });
 
+  it("accepts a .docx reported as application/octet-stream", () => {
+    expect(validateResumeFile(file("cv.docx", "application/octet-stream")).ok).toBe(true);
+  });
+
+  it("rejects an octet-stream .png with the type message", () => {
+    expect(validateResumeFile(file("cv.png", "application/octet-stream"))).toEqual({
+      ok: false,
+      message: TYPE_ERROR,
+    });
+  });
+
   it("rejects a 5 MB file with the size message", () => {
     const result = validateResumeFile(file("cv.pdf", "application/pdf", 5 * 1024 * 1024));
     expect(result.ok).toBe(false);
