@@ -92,7 +92,7 @@ const sendRegistrationOTP = async (req, res) => {
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, plan, industries, imageUrl, otp } = req.body;
+    const { name, email, password, industries, imageUrl, otp } = req.body;
     const isExist = await User.findOne({ email });
     const validOtp = await Otp.findOne({ email, otp });
     if (!validOtp) {
@@ -104,7 +104,6 @@ const registerUser = async (req, res) => {
       name,
       email,
       passwordHash: hash,
-      plan,
       industries,
       imageUrl,
       authProvider: 'local'

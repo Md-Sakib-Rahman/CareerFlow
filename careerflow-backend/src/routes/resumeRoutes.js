@@ -3,6 +3,8 @@ const router = express.Router();
 const multer = require("multer");
 const { Readable } = require("stream");
 const Resume = require("../models/Resume");
+const Job = require("../models/Job");
+const mongoose = require("mongoose");
 const cloudinary = require("../config/cloudinary");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -22,6 +24,14 @@ const uploadToCloudinary = (file) => {
   });
 };
 
+// jobId must be "General" or a job owned by the user. Returns an error response body or null.
+const checkJobId = async (jobId, userId) => {
+  if (!jobId || jobId === "General") return null;
+  if (!mongoose.isValidObjectId(jobId)) return { status: 400, message: "Invalid jobId" };
+  if (!(await Job.exists({ _id: jobId, userId }))) return { status: 404, message: "Job not found" };
+  return null;
+};
+
 /* Upload Resume */
 router.post("/add", protect, upload.single("resume"), async (req, res) => {
   try {
@@ -31,6 +41,8 @@ router.post("/add", protect, upload.single("resume"), async (req, res) => {
     if (!extractedUserId) {
         return res.status(400).json({ message: "Could not extract User ID from token. Check your verifyToken middleware." });
     }
+    const jobError = await checkJobId(req.body.jobId, extractedUserId);
+    if (jobError) return res.status(jobError.status).json({ message: jobError.message });
     const result = await uploadToCloudinary(req.file);
     const resume = new Resume({
       name: req.file.originalname,
@@ -49,10 +61,13 @@ router.post("/add", protect, upload.single("resume"), async (req, res) => {
 });
 
 /* Update Resume (PATCH) - */
-router.patch("/:id", upload.single("resume"), async (req, res) => {
+router.patch("/:id", protect, upload.single("resume"), async (req, res) => {
   try {
-    const resume = await Resume.findById(req.params.id);
+    const resume = await Resume.findOne({ _id: req.params.id, userId: req.user.id });
     if (!resume) return res.status(404).json({ message: "Resume not found" });
+
+    const jobError = await checkJobId(req.body.jobId, req.user.id);
+    if (jobError) return res.status(jobError.status).json({ message: jobError.message });
 
     if (req.body.type) resume.type = req.body.type;
     if (req.body.jobId) resume.jobId = req.body.jobId === "General" ? null : req.body.jobId;
@@ -96,9 +111,9 @@ router.get("/", protect,  async (req, res) => {
 });
 
 /* Delete Resume */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", protect, async (req, res) => {
   try {
-    const resume = await Resume.findById(req.params.id);
+    const resume = await Resume.findOne({ _id: req.params.id, userId: req.user.id });
     if (!resume) return res.status(404).json({ message: "Resume not found" });
 
     await cloudinary.uploader.destroy(resume.cloudinaryId, {
