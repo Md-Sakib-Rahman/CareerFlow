@@ -8,7 +8,10 @@ const dbConnect = require("./src/config/db");
 const DB = process.env.MONGO_URL;
 
 // DATABASE CONNECTION
-dbConnect();
+dbConnect().catch((err) => {
+  console.error("Database connection failed:", err.message);
+  process.exit(1);
+});
 
 // START SERVER
 if (process.env.NODE_ENV !== "production") {
