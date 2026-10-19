@@ -4,6 +4,9 @@ const { startDb, clearDb, stopDb } = require("./helpers/db");
 const app = require("../src/app");
 const User = require("../src/models/User");
 const Board = require("../src/models/Board");
+const Job = require("../src/models/Job");
+const Reminder = require("../src/models/Reminder");
+const Resume = require("../src/models/Resume");
 
 beforeAll(startDb);
 afterAll(stopDb);
@@ -56,5 +59,33 @@ describe("L17: board limits via planLimits", () => {
     const token = tokenFor(user);
     expect((await post(token, "a")).status).toBe(201);
     expect((await post(token, "b")).status).toBe(403);
+  });
+});
+
+describe("L8: deleteBoard cleans reminders and resume links", () => {
+  test("reminders deleted, resumes unlinked but kept, other boards untouched", async () => {
+    const user = await makeUser("executive");
+    const token = tokenFor(user);
+    const auth = { Authorization: `Bearer ${token}` };
+    const b1 = (await post(token, "one")).body.data;
+    const b2 = (await post(token, "two")).body.data;
+    const addJob = async (b) => {
+      const j = (await request(app).post("/api/jobs").set(auth).send({
+        boardId: b._id, columnId: b.columns[0]._id, company: "A", title: "D", applyDeadlineAt: "2030-06-10T00:00:00.000Z",
+      })).body.data;
+      const r = await Resume.create({ userId: user._id, name: "cv", fileUrl: "http://f.invalid/cv", cloudinaryId: "r/cv", jobId: j._id });
+      return { j, r };
+    };
+    const a = await addJob(b1);
+    const o = await addJob(b2);
+    expect(await Reminder.countDocuments()).toBe(2);
+
+    const res = await request(app).delete(`/api/boards/${b1._id}`).set(auth);
+    expect(res.status).toBe(200);
+    expect(await Reminder.countDocuments({ jobId: a.j._id })).toBe(0);
+    expect(await Reminder.countDocuments({ jobId: o.j._id })).toBe(1);
+    expect((await Resume.findById(a.r._id)).jobId).toBeNull();
+    expect(String((await Resume.findById(o.r._id)).jobId)).toBe(String(o.j._id));
+    expect(await Job.countDocuments({ boardId: b1._id })).toBe(0);
   });
 });

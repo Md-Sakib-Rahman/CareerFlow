@@ -1,5 +1,7 @@
 const Board = require("../models/Board");
 const Job = require("../models/Job");  
+const Reminder = require("../models/Reminder");
+const Resume = require("../models/Resume");
 const User = require("../models/User");
 const { getPlanLimits } = require("../utils/planLimits");
 /**
@@ -211,6 +213,9 @@ const deleteBoard = async (req, res) => {
     }
 
     // 3. CASCADE DELETE: Remove all jobs associated with this board
+    const boardJobIds = await Job.find({ boardId }).distinct("_id");
+    await Reminder.deleteMany({ jobId: { $in: boardJobIds } });
+    await Resume.updateMany({ jobId: { $in: boardJobIds } }, { jobId: null });
     const deletedJobs = await Job.deleteMany({ boardId });
 
     // 4. DELETE THE BOARD

@@ -2,7 +2,10 @@ const Job = require("../models/Job");
 const Board = require("../models/Board");
 const Reminder = require("../models/Reminder"); // NEW: Import the standalone model
 const User = require("../models/User");
+const Resume = require("../models/Resume");
 const { getPlanLimits } = require("../utils/planLimits");
+
+const isValidLeadDays = (v) => v === undefined || (Number.isInteger(v) && v >= 0 && v <= 30);
 
 /**
  * @desc    Create a new job (Defaults to Wishlist)
@@ -36,6 +39,10 @@ const createJob = async (req, res) => {
     }
     // ==========================================
 
+    if (!isValidLeadDays(reminderLeadDays)) {
+      return res.status(400).json({ success: false, message: "reminderLeadDays must be an integer from 0 to 30" });
+    }
+
     // 1. VALIDATION
     const board = await Board.findOne({ _id: boardId, userId });
     if (!board) return res.status(404).json({ success: false, message: "Board not found" });
@@ -62,7 +69,7 @@ const createJob = async (req, res) => {
     let reminderConfig = null;
     if (applyDeadlineAt) {
       const targetDate = new Date(applyDeadlineAt);
-      const lead = reminderLeadDays || 2;
+      const lead = reminderLeadDays ?? 2;
       const rDate = new Date(targetDate);
       rDate.setDate(rDate.getDate() - lead);
 
@@ -120,6 +127,18 @@ const updateJob = async (req, res) => {
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
 
+    if (!isValidLeadDays(reminderLeadDays)) {
+      return res.status(400).json({ success: false, message: "reminderLeadDays must be an integer from 0 to 30" });
+    }
+    if (dates !== undefined && (dates === null || typeof dates !== "object" || Array.isArray(dates))) {
+      return res.status(400).json({ success: false, message: "dates must be an object" });
+    }
+    for (const key of ["applyDeadlineAt", "actualInterviewDate"]) {
+      if (dates && dates[key] !== undefined && Number.isNaN(new Date(dates[key]).getTime())) {
+        return res.status(400).json({ success: false, message: `Invalid date for ${key}` });
+      }
+    }
+
     // 1. GUARDRAIL: column must belong to the job's board and agree with status
     let nextStatus = status;
     if (columnId) {
@@ -173,6 +192,8 @@ const updateJob = async (req, res) => {
       job.dates.actualInterviewDate = undefined;
       job.dates.applyDeadlineAt = undefined;
 
+      if (job.status === "rejected" && targetStatus !== "rejected") job.dates.rejectedAt = undefined;
+
       // FUNNEL FLAGS & DATE LOGIC 
       if (targetStatus === "wishlist") {
         job.isApplied = job.isInterviewing = job.isOffered = job.isRejected = false;
@@ -204,9 +225,11 @@ const updateJob = async (req, res) => {
     if (dates) {
       // Because we cleared actualInterviewDate and applyDeadlineAt above, 
       // this will safely write the *new* ones if the payload includes them.
-      for (const key in dates) {
-        job.dates[key] = dates[key];
-      }
+      const isWishlist = job.status === "wishlist";
+      const applyDate = dates.applyDeadlineAt ?? (isWishlist ? dates.actualInterviewDate : undefined);
+      const interviewDate = isWishlist ? undefined : dates.actualInterviewDate;
+      if (applyDate !== undefined) job.dates.applyDeadlineAt = applyDate;
+      if (interviewDate !== undefined) job.dates.actualInterviewDate = interviewDate;
 
       let reminderType = null;
       // ONLY set "apply" if currently in wishlist
@@ -214,9 +237,9 @@ const updateJob = async (req, res) => {
       // ONLY set "interview" if currently in applied/interviewing
       else if (["applied", "interviewing"].includes(job.status)) reminderType = "interview";
 
-      if (reminderType && (dates.actualInterviewDate || dates.applyDeadlineAt)) {
-        const targetDate = new Date(dates.actualInterviewDate || dates.applyDeadlineAt);
-        const lead = reminderLeadDays || 2;
+      if (reminderType && (interviewDate || applyDate)) {
+        const targetDate = new Date(interviewDate || applyDate);
+        const lead = reminderLeadDays ?? 2;
         const rDate = new Date(targetDate);
         rDate.setDate(rDate.getDate() - lead);
 
@@ -256,6 +279,7 @@ const deleteJob = async (req, res) => {
 
     // 2. CASCADE DELETE: Wipe out any reminders attached to this deleted job
     await Reminder.deleteMany({ jobId: jobId });
+    await Resume.updateMany({ jobId: jobId }, { jobId: null });
 
     res.status(200).json({
       success: true,
