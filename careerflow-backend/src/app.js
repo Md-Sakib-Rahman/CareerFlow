@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -112,7 +113,17 @@ app.use("/api/resume", resumeRoutes); // ⭐ Resume Vault API
 // ==========================
 
 app.get("/api/cron/send-daily-emails", async (req, res) => {
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET) {
+    console.error("CRON_SECRET is not set; refusing cron request");
+    return res.status(500).json({ error: "Server misconfigured" });
+  }
+
+  const provided = Buffer.from(req.headers.authorization || "");
+  const expected = Buffer.from(`Bearer ${process.env.CRON_SECRET}`);
+  if (
+    provided.length !== expected.length ||
+    !crypto.timingSafeEqual(provided, expected)
+  ) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
