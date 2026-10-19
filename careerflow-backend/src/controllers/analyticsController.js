@@ -1,6 +1,9 @@
 const Job = require("../models/Job");
 const Board = require("../models/Board");
 const mongoose = require("mongoose");
+const User = require("../models/User");
+const InsightCache = require("../models/InsightCache");
+const { countGhosted } = require("../utils/ghosted");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const getAnalytics = async (req, res) => {
   try {
@@ -45,20 +48,31 @@ const getAnalytics = async (req, res) => {
             { 
               $match: { 
                 "dates.appliedAt": { $exists: true }, 
-                "dates.interviewAt": { $exists: true } 
+                "dates.interviewingAt": { $exists: true } 
               } 
             },
             {
               $project: {
                 daysToResponse: {
                   $divide: [
-                    { $subtract: ["$dates.interviewAt", "$dates.appliedAt"] },
+                    { $subtract: ["$dates.interviewingAt", "$dates.appliedAt"] },
                     1000 * 60 * 60 * 24
                   ]
                 }
               }
             },
             { $group: { _id: null, avgDays: { $avg: "$daysToResponse" } } }
+          ],
+          // Part D: Funnel history (a job counts for every stage it ever reached)
+          historyCounts: [
+            {
+              $group: {
+                _id: null,
+                applied: { $sum: { $cond: [{ $or: ["$isApplied", "$isInterviewing", "$isOffered"] }, 1, 0] } },
+                interviewed: { $sum: { $cond: [{ $or: ["$isInterviewing", "$isOffered"] }, 1, 0] } },
+                offered: { $sum: { $cond: ["$isOffered", 1, 0] } }
+              }
+            }
           ]
         }
       }
@@ -74,16 +88,13 @@ const getAnalytics = async (req, res) => {
     });
 
     // 5. Advanced Metrics (The "Insight" Layer)
-    const totalApps = stats.applied + stats.interviewing + stats.offered + stats.rejected;
-    const interviewRate = totalApps > 0 ? ((stats.interviewing / totalApps) * 100).toFixed(1) : 0;
-    const offerRate = stats.interviewing > 0 ? ((stats.offered / stats.interviewing) * 100).toFixed(1) : 0;
+    const history = analyticsResult.historyCounts[0] || { applied: 0, interviewed: 0, offered: 0 };
+    const totalApps = history.applied;
+    const interviewRate = history.applied > 0 ? ((history.interviewed / history.applied) * 100).toFixed(1) : 0;
+    const offerRate = history.interviewed > 0 ? ((history.offered / history.interviewed) * 100).toFixed(1) : 0;
     
-    // Pro Detail: Ghosting Detection (Applied > 14 days ago with no status change)
-    const ghostedCount = await Job.countDocuments({
-      ...matchStage,
-      status: 'applied',
-      "dates.appliedAt": { $lt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }
-    });
+    // Pro Detail: Ghosting Detection (shared definition, see utils/ghosted.js)
+    const ghostedCount = await countGhosted(matchStage);
 
     res.status(200).json({
       success: true,
@@ -91,7 +102,7 @@ const getAnalytics = async (req, res) => {
         boards: boardsList,
         pipelineStatus: stats,
         metrics: {
-          successRate: totalApps > 0 ? ((stats.offered / totalApps) * 100).toFixed(1) : 0,
+          successRate: totalApps > 0 ? ((history.offered / totalApps) * 100).toFixed(1) : 0,
           interviewRate: `${interviewRate}%`, // How good is the resume?
           offerRate: `${offerRate}%`,         // How good is the interviewing?
           avgResponseDays: Math.round(analyticsResult.avgResponseTime[0]?.avgDays || 0),
@@ -99,8 +110,8 @@ const getAnalytics = async (req, res) => {
         },
         funnel: [
           { step: "Applied", count: totalApps },
-          { step: "Interviewed", count: stats.interviewing },
-          { step: "Offered", count: stats.offered }
+          { step: "Interviewed", count: history.interviewed },
+          { step: "Offered", count: history.offered }
         ],
         monthlyActivity: analyticsResult.monthlyActivity
       }
@@ -137,13 +148,7 @@ const getAiInsights = async (req, res) => {
     const interviewingJobs = await Job.countDocuments({ ...matchQuery, status: 'interviewing' });
     const offeredJobs = await Job.countDocuments({ ...matchQuery, status: 'offer' });
     
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    const ghostedJobs = await Job.countDocuments({
-      ...matchQuery,
-      status: { $in: ['applied', 'wishlist'] },
-      updatedAt: { $lt: fourteenDaysAgo }
-    });
+    const ghostedJobs = await countGhosted(matchQuery);
 
     const interviewRate = ((interviewingJobs / totalJobs) * 100).toFixed(1);
     const successRate = ((offeredJobs / totalJobs) * 100).toFixed(1);
@@ -156,6 +161,20 @@ const getAiInsights = async (req, res) => {
     // Only hit the AI if they have enough data to analyze
     if (totalJobs > 5) {
       try {
+        const boardKey = matchQuery.boardId ? String(matchQuery.boardId) : "all";
+        const cached = await InsightCache.findOne({ userId, boardKey });
+        if (cached && cached.generatedAt.getTime() > Date.now() - 60 * 60 * 1000) {
+          return res.status(200).json({ success: true, data: { aiInsights: cached.text } });
+        }
+
+        const { industries: rawIndustries = [] } = (await User.findById(userId).select("industries").lean()) || {};
+        const industries = rawIndustries
+          .filter((i) => typeof i === "string")
+          .map((i) => i.replace(/[\r\n]+/g, " ").trim().slice(0, 40).trim())
+          .filter(Boolean)
+          .slice(0, 5);
+        const who = industries.length ? `a job seeker working in ${industries.join(", ")}` : "a job seeker";
+
         // Initialize Gemini
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         // Use flash for the fastest response time
@@ -163,7 +182,7 @@ const getAiInsights = async (req, res) => {
 
         // Construct the prompt with the user's exact metrics
         const prompt = `
-          You are an expert career coach analyzing a software developer's job application pipeline. 
+          You are an expert career coach analyzing the job application pipeline of ${who}. 
           Here is their current data:
           - Total Applications: ${totalJobs}
           - Currently Interviewing: ${interviewingJobs}
@@ -178,6 +197,15 @@ const getAiInsights = async (req, res) => {
 
         const result = await model.generateContent(prompt);
         aiInsights = result.response.text().trim();
+        try {
+          await InsightCache.findOneAndUpdate(
+            { userId, boardKey },
+            { text: aiInsights, generatedAt: new Date(Date.now()) },
+            { upsert: true }
+          );
+        } catch (cacheError) {
+          console.error("Insight cache write failed:", cacheError);
+        }
 
       } catch (geminiError) {
         console.error("Gemini API Error:", geminiError);
