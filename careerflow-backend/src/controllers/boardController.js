@@ -1,6 +1,7 @@
 const Board = require("../models/Board");
 const Job = require("../models/Job");  
 const User = require("../models/User");
+const { getPlanLimits } = require("../utils/planLimits");
 /**
  * @desc    Create a new board
  * @route   POST /api/boards
@@ -52,18 +53,11 @@ const createBoard = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const currentBoardCount = await Board.countDocuments({ userId });
-    if (user.plan === 'starter' && currentBoardCount >= 1) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Starter plan limit reached (Max 1 Board). Please upgrade to Pro." 
-      });
-    }
-
-    if (user.plan === 'pro' && currentBoardCount >= 10) {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Pro plan limit reached (Max 10 Boards). Please upgrade to Executive." 
-      });
+    if (currentBoardCount >= getPlanLimits(user.plan).boards) {
+      const message = user.plan === 'pro'
+        ? "Pro plan limit reached (Max 10 Boards). Please upgrade to Executive."
+        : "Starter plan limit reached (Max 1 Board). Please upgrade to Pro.";
+      return res.status(403).json({ success: false, message });
     }
     // ==========================================
 

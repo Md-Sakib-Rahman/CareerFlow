@@ -2,6 +2,7 @@ const Job = require("../models/Job");
 const Board = require("../models/Board");
 const Reminder = require("../models/Reminder"); // NEW: Import the standalone model
 const User = require("../models/User");
+const { getPlanLimits } = require("../utils/planLimits");
 
 /**
  * @desc    Create a new job (Defaults to Wishlist)
@@ -13,7 +14,7 @@ const createJob = async (req, res) => {
   try {
     const {
       boardId, columnId, company, title,
-      salary, url, applyDeadlineAt, reminderLeadDays, notes
+      salary, url, location, applyDeadlineAt, reminderLeadDays, notes
     } = req.body;
     const userId = req.user._id || req.user.id;
 
@@ -23,9 +24,10 @@ const createJob = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    if (user.plan === 'starter') {
+    const jobLimit = getPlanLimits(user.plan).jobs;
+    if (jobLimit !== Infinity) {
       const currentJobCount = await Job.countDocuments({ userId });
-      if (currentJobCount >= 20) {
+      if (currentJobCount >= jobLimit) {
         return res.status(403).json({ 
           success: false, 
           message: "Starter plan limit reached (Max 20 Jobs). Please upgrade to Pro." 
@@ -53,7 +55,7 @@ const createJob = async (req, res) => {
     // 2. Prepare Job Data 
     const jobData = {
       userId, boardId, columnId, company, title,
-      status: "wishlist", salary, url, notes,
+      status: "wishlist", salary, url, location, notes,
       dates: { wishlistAt: new Date() }
     };
 
@@ -118,24 +120,34 @@ const updateJob = async (req, res) => {
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ success: false, message: "Job not found" });
 
-    // 1. GUARDRAIL
-    if (columnId && status) {
+    // 1. GUARDRAIL: column must belong to the job's board and agree with status
+    let nextStatus = status;
+    if (columnId) {
       const board = await Board.findById(job.boardId);
       const targetColumn = board.columns.id(columnId);
-      if (!targetColumn || targetColumn.internalStatus !== status) {
+      if (!targetColumn) {
+        return res.status(400).json({ success: false, message: "Invalid Column ID for this board." });
+      }
+      if (status && targetColumn.internalStatus !== status) {
         return res.status(400).json({
           success: false,
           message: `Mismatch: Target column does not match status ${status}.`
         });
       }
+      nextStatus = targetColumn.internalStatus;
+    } else if (status && status !== job.status) {
+      return res.status(400).json({
+        success: false,
+        message: "columnId is required when changing status."
+      });
     }
 
     // 2. METADATA UPDATE
     if (metadata.company) job.company = metadata.company;
     if (metadata.title) job.title = metadata.title;
-    if (metadata.location) job.location = metadata.location;
-    if (metadata.url) job.url = metadata.url;
-    if (metadata.notes) job.notes = metadata.notes;
+    if (metadata.location !== undefined) job.location = metadata.location;
+    if (metadata.url !== undefined) job.url = metadata.url;
+    if (metadata.notes !== undefined) job.notes = metadata.notes;
 
     if (metadata.salary) {
       job.salary.min = metadata.salary.min ?? job.salary.min;
@@ -144,11 +156,11 @@ const updateJob = async (req, res) => {
     }
 
     // 3. FUNNEL ANALYTICS & GHOST REMINDER CLEANUP
-    const isStatusChange = status && status !== job.status;
+    const isStatusChange = nextStatus && nextStatus !== job.status;
     const isColumnChange = columnId && columnId !== job.columnId?.toString();
 
     if (isStatusChange || isColumnChange) {
-      const targetStatus = status || job.status;
+      const targetStatus = nextStatus || job.status;
 
       // ==========================================
       // GHOST CLEANUP LOGIC (Simplified & 100% Accurate)

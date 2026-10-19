@@ -41,7 +41,8 @@ const boardSchema = new mongoose.Schema({
       { title: "Wishlist", internalStatus: "wishlist", position: 0, color: "#94a3b8" },
       { title: "Applied", internalStatus: "applied", position: 1, color: "#3b82f6" },
       { title: "Interviewing", internalStatus: "interviewing", position: 2, color: "#f59e0b" },
-      { title: "Offers", internalStatus: "offer", position: 3, color: "#10b981" }
+      { title: "Offers", internalStatus: "offer", position: 3, color: "#10b981" },
+      { title: "Rejected", internalStatus: "rejected", position: 4, color: "#ef4444" }
     ]
   },
   isPrimary: {
