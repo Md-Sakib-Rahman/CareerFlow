@@ -44,14 +44,67 @@ privateApi.interceptors.request.use(
 
 /**
  * 4. Response Interceptor
- * Optional: Global error handling for expired sessions.
+ * On 401, refresh the access token once (shared between concurrent requests)
+ * and retry the original request once.
  */
+
+// Registered from Redux/store.js so this file never imports the store
+// (authSlice imports this file, which would make a circular import).
+let authHandlers = {
+  onTokenRefreshed: () => {},
+  onSessionExpired: () => {},
+};
+export const setAuthHandlers = (handlers) => {
+  authHandlers = { ...authHandlers, ...handlers };
+};
+
+const NO_REFRESH_URLS =
+  /\/auth\/(login|register|google|send-otp|forgot-password|reset-password|refresh-token)/;
+
+let refreshPromise = null;
+const refreshAccessToken = () => {
+  if (!refreshPromise) {
+    refreshPromise = publicApi
+      .get("/auth/refresh-token")
+      .then((res) => {
+        const { accessToken } = res.data;
+        localStorage.setItem("accessToken", accessToken);
+        authHandlers.onTokenRefreshed(accessToken);
+        return accessToken;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+};
+
+const expireSession = () => {
+  localStorage.removeItem("accessToken");
+  authHandlers.onSessionExpired();
+};
+
 privateApi.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      console.warn("Unauthorized access - session might be expired.");
+  async (error) => {
+    const config = error.config;
+    if (error.response?.status !== 401 || !config || NO_REFRESH_URLS.test(config.url || "")) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+    if (config._retry) {
+      // The retried request was rejected again: give up, no loop.
+      expireSession();
+      return Promise.reject(error);
+    }
+    config._retry = true;
+    let token;
+    try {
+      token = await refreshAccessToken();
+    } catch {
+      expireSession();
+      return Promise.reject(error);
+    }
+    config.headers.Authorization = `Bearer ${token}`;
+    return privateApi(config);
   }
 );
